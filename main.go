@@ -23,7 +23,6 @@ import (
 
 type handler struct {
 	DSN            string // e.g. "bugzilla:secret@tcp(auroradb.dev.unee-t.com:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL"
-	Domain         string // e.g. https://dev.case.unee-t.com
 	APIAccessToken string // e.g. O8I9svDTizOfLfdVA5ri
 	db             *sql.DB
 	Code           env.EnvCode
@@ -61,7 +60,6 @@ func New() (h handler, err error) {
 		DSN: fmt.Sprintf("bugzilla:%s@tcp(%s:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL",
 			e.GetSecret("MYSQL_PASSWORD"),
 			e.Udomain("auroradb")),
-		Domain:         fmt.Sprintf("https://%s", e.Udomain("case")),
 		APIAccessToken: e.GetSecret("API_ACCESS_TOKEN"),
 		Code:           e.Code,
 	}
@@ -70,8 +68,6 @@ func New() (h handler, err error) {
 		err = fmt.Errorf("Error code is unknown/unset")
 		return
 	}
-
-	log.Infof("Frontend URL: %v", h.Domain)
 
 	h.db, err = sql.Open("mysql", h.DSN)
 	if err != nil {
@@ -102,6 +98,17 @@ func main() {
 
 }
 
+func (h handler) insert(credential APIkey) (err error) {
+	_, err = h.db.Exec(
+		`INSERT INTO user_api_keys (user_id,
+			api_key
+		) VALUES (?,?)`,
+		credential.UserID,
+		credential.UserAPIkey,
+	)
+	return
+}
+
 func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
@@ -128,6 +135,14 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 
 	if k.UserID == "" {
 		response.BadRequest(w, "Missing UserID")
+		return
+	}
+
+	err = h.insert(k)
+
+	if err != nil {
+		log.WithError(err).Fatal("failed to insert")
+		response.BadRequest(w, "Failed to insert")
 		return
 	}
 
