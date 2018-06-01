@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	jsonhandler "github.com/apex/log/handlers/json"
 	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
@@ -111,6 +112,23 @@ func (h handler) insert(credential APIkey) (err error) {
 
 func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 
+	var token string
+
+	// Get token from the Authorization header
+	// format: Authorization: Bearer
+	tokens, ok := r.Header["Authorization"]
+	if ok && len(tokens) >= 1 {
+		token = tokens[0]
+		token = strings.TrimPrefix(token, "Bearer ")
+	}
+
+	// If the token is empty...
+	if token == "" || token != h.APIAccessToken {
+		// If we get here, the required token is missing
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	var k APIkey
 	err := decoder.Decode(&k)
@@ -147,5 +165,6 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w)
+	return
 
 }
