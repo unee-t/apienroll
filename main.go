@@ -54,7 +54,7 @@ func New() (h handler, err error) {
 	cfg.Region = endpoints.ApSoutheast1RegionID
 	e, err := env.New(cfg)
 	if err != nil {
-		log.WithError(err).Fatal("error getting unee-t env")
+		log.WithError(err).Warn("error getting AWS unee-t env")
 	}
 
 	var mysqlhost string
@@ -73,11 +73,6 @@ func New() (h handler, err error) {
 			mysqlhost),
 		APIAccessToken: e.GetSecret("API_ACCESS_TOKEN"),
 		Code:           e.Code,
-	}
-
-	if h.Code == 0 {
-		err = fmt.Errorf("Error code is unknown/unset")
-		return
 	}
 
 	h.db, err = sql.Open("mysql", h.DSN)

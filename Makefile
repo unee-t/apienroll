@@ -1,3 +1,6 @@
+NAME=apienroll
+REPO=uneet/$(NAME)
+
 all:
 	go build
 
@@ -16,8 +19,20 @@ prod:
 	jq '.profile |= "uneet-prod" |.stages.staging |= (.domain = "apienroll.unee-t.com" | .zone = "unee-t.com")' up.json.in > up.json
 	up
 
-
 clean:
 	rm -f apienroll gin-bin
+
+build:
+	docker build -t $(REPO) --build-arg COMMIT=$(shell git describe --always) .
+
+start:
+	docker run -d --name $(NAME) -p 9000:9000 $(REPO)
+
+stop:
+	docker stop $(NAME)
+	docker rm $(NAME)
+
+sh:
+	docker exec -it $(NAME) /bin/sh
 
 .PHONY: dev demo prod
