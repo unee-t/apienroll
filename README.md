@@ -12,3 +12,7 @@ Required variables for database connectivity and authentication:
 Can be overridden with local variables.
 
 	while read -r; do export "$REPLY"; done < .env
+
+# Docker image
+
+[uneet/apienroll](https://hub.docker.com/r/uneet/apienroll/), as used in https://github.com/unee-t/bugzilla-customisation/blob/master/docker-compose.yml
