@@ -1,9 +1,16 @@
 build:
-  main: main.go
-  binary: lk2
-  goos:
-    - windows
-    - darwin
-    - linux
-  goarch:
-    - amd64
+    main: main.go
+    binary: apienroll
+    goos:
+        - windows
+        - darwin
+        - linux
+    goarch:
+        - amd64
+
+dockers:
+    - image: uneet/apienroll
+      tag_templates:
+          - '{{ .Tag }}'
+          - 'v{{ .Major }}.{{ .Minor }}'
+          - 'latest'
