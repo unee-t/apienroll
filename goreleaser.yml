@@ -1,16 +1,12 @@
 build:
-    main: main.go
-    binary: apienroll
-    goos:
-        - windows
-        - darwin
-        - linux
-    goarch:
-        - amd64
+  env:
+    - CGO_ENABLED=0
 
 dockers:
     - image: uneet/apienroll
       tag_templates:
           - '{{ .Tag }}'
-          - 'v{{ .Major }}.{{ .Minor }}'
           - 'latest'
+
+archive:
+    format: binary
