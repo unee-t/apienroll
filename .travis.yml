@@ -16,7 +16,7 @@ install:
 - sudo apt-get install jq -y
 
 after_success:
-- test -n "$TRAVIS_TAG" && docker login -u=unnetci -p="$DOCKER_PASSWORD"
+- test -n "$TRAVIS_TAG" && docker login -u=uneetci -p="$DOCKER_PASSWORD"
 
 script:
 - go test -v ./...
