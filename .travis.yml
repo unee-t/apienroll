@@ -8,6 +8,9 @@ before_install:
 - curl -sf https://up.apex.sh/install | sudo sh
 - sudo up upgrade
 
+services:
+    - docker
+
 install:
 - go get -t ./...
 - sudo apt-get install jq -y
