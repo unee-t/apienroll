@@ -33,12 +33,14 @@ deploy:
    script: AWS_ACCESS_KEY_ID=$AWS_915001051872_ID AWS_SECRET_ACCESS_KEY=$AWS_915001051872_SECRET make demo
    skip_cleanup: true
    on:
+      tags: true
       branch: master
  # production
  - provider: script
    script: AWS_ACCESS_KEY_ID=$AWS_192458993663_ID AWS_SECRET_ACCESS_KEY=$AWS_192458993663_SECRET make prod
    skip_cleanup: true
    on:
+      tags: true
       branch: master
  - provider: script
    skip_cleanup: true

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	jsonhandler "github.com/apex/log/handlers/json"
 	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
@@ -97,7 +96,7 @@ func main() {
 
 	addr := ":" + os.Getenv("PORT")
 	app := pat.New()
-	app.Post("/", http.HandlerFunc(h.enroll))
+	app.Post("/", env.Towr(env.Protect(http.HandlerFunc(h.enroll), h.APIAccessToken)))
 	if err := http.ListenAndServe(addr, app); err != nil {
 		log.WithError(err).Fatal("error listening")
 	}
@@ -116,23 +115,6 @@ func (h handler) insert(credential APIkey) (err error) {
 }
 
 func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
-
-	var token string
-
-	// Get token from the Authorization header
-	// format: Authorization: Bearer
-	tokens, ok := r.Header["Authorization"]
-	if ok && len(tokens) >= 1 {
-		token = tokens[0]
-		token = strings.TrimPrefix(token, "Bearer ")
-	}
-
-	// If the token is empty...
-	if token == "" || token != h.APIAccessToken {
-		// If we get here, the required token is missing
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return
-	}
 
 	decoder := json.NewDecoder(r.Body)
 	var k APIkey
