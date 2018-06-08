@@ -106,10 +106,12 @@ func main() {
 func (h handler) insert(credential APIkey) (err error) {
 	_, err = h.db.Exec(
 		`INSERT INTO user_api_keys (user_id,
-			api_key
-		) VALUES (?,?)`,
+			api_key,
+			description
+		) VALUES (?,?,?)`,
 		credential.UserID,
 		credential.UserAPIkey,
+		"MEFE Access Key",
 	)
 	return
 }
