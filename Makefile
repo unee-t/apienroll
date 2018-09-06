@@ -1,3 +1,10 @@
+DEVUPJSON = '.profile |= "uneet-dev" \
+		  |.stages.staging |= (.domain = "unit.dev.unee-t.com" | .zone = "dev.unee-t.com") \
+		  | .actions[0].emails |= ["kai.hendry+unitdev@unee-t.com"] \
+		  | .lambda.vpc.subnets |= [ "subnet-0e123bd457c082cff", "subnet-0ff046ccc4e3b6281", "subnet-0e123bd457c082cff" ] \
+		  | .profile |= "uneet-dev" \
+		  | .lambda.vpc.security_groups |= [ "sg-0b83472a34bc17400", "sg-0f4dadb564041855b" ]'
+
 NAME=apienroll
 REPO=uneet/$(NAME)
 
@@ -6,7 +13,7 @@ all:
 
 dev:
 	@echo $$AWS_ACCESS_KEY_ID
-	jq '.profile |= "uneet-dev" |.stages.staging |= (.domain = "apienroll.dev.unee-t.com" | .zone = "dev.unee-t.com")' up.json.in > up.json
+	jq $(DEVUPJSON) up.json.in > up.json
 	up
 
 demo:

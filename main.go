@@ -9,7 +9,7 @@ import (
 	jsonhandler "github.com/apex/log/handlers/json"
 	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
-	"github.com/gorilla/pat"
+	"github.com/gorilla/mux"
 	"github.com/tj/go/http/response"
 	"github.com/unee-t/env"
 
@@ -95,9 +95,12 @@ func main() {
 	defer h.db.Close()
 
 	addr := ":" + os.Getenv("PORT")
-	app := pat.New()
-	app.Post("/", env.Towr(env.Protect(http.HandlerFunc(h.enroll), h.APIAccessToken)))
-	if err := http.ListenAndServe(addr, app); err != nil {
+
+	app := mux.NewRouter()
+	app.HandleFunc("/", h.enroll).Methods("POST")
+	app.HandleFunc("/", h.ping).Methods("GET")
+
+	if err := http.ListenAndServe(addr, env.Protect(app, h.APIAccessToken)); err != nil {
 		log.WithError(err).Fatal("error listening")
 	}
 
@@ -156,4 +159,13 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 	response.OK(w)
 	return
 
+}
+
+func (h handler) ping(w http.ResponseWriter, r *http.Request) {
+	err := h.db.Ping()
+	if err != nil {
+		log.WithError(err).Error("failed to ping database")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	fmt.Fprintf(w, "OK")
 }
