@@ -24,12 +24,13 @@
       }
     ]
   },
-
-    "actions": [
+  "actions": [
     {
       "name": "email.backend",
       "type": "email",
-      "emails": ["kai.hendry@unee-t.com"]
+      "emails": [
+        "kai.hendry@unee-t.com"
+      ]
     }
   ],
   "alerts": [
@@ -61,15 +62,12 @@
       "action": "email.backend"
     },
     {
-      "namespace": "AWS/ApiGateway",
-      "metric": "Count",
-      "statistic": "sum",
-      "threshold": 500,
+      "metric": "http.latency",
+      "statistic": "avg",
+      "threshold": 1000,
+      "period": "5m",
       "action": "email.backend",
-      "description": "Note how you can use AWS namespaces and metrics directly if necessary."
+      "description": "Large traffic spike"
     }
   ]
-
-
-
 }
