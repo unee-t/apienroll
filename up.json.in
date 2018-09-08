@@ -53,21 +53,6 @@
       "threshold": 50,
       "period": "5m",
       "action": "email.backend"
-    },
-    {
-      "metric": "http.latency",
-      "statistic": "avg",
-      "threshold": 1000,
-      "period": "5m",
-      "action": "email.backend"
-    },
-    {
-      "metric": "http.latency",
-      "statistic": "avg",
-      "threshold": 1000,
-      "period": "5m",
-      "action": "email.backend",
-      "description": "Large traffic spike"
     }
   ]
 }
