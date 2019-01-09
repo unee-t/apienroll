@@ -3,10 +3,10 @@ build:
     - CGO_ENABLED=0
 
 dockers:
-    - image: uneet/apienroll
-      tag_templates:
-          - '{{ .Tag }}'
-          - 'latest'
+  - image: uneet/apienroll
+    tag_templates:
+      - '{{ .Tag }}'
+      - 'latest'
 
 archive:
-    format: binary
+  format: binary
