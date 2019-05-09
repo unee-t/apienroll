@@ -45,3 +45,6 @@ deploy:
    on:
      tags: true
      condition: $TRAVIS_OS_NAME = linux
+
+env:
+  - GO111MODULE=on
