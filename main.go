@@ -66,7 +66,7 @@ func New() (h handler, err error) {
 	}
 
 	h = handler{
-		DSN: fmt.Sprintf("%s:%s@tcp(%s:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL",
+		DSN: fmt.Sprintf("%s:%s@tcp(%s:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL&collation=utf8mb4_unicode_520_ci",
 			e.GetSecret("MYSQL_USER"),
 			e.GetSecret("MYSQL_PASSWORD"),
 			mysqlhost),
