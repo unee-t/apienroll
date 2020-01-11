@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/gorilla/mux"
 	"github.com/tj/go/http/response"
-	"github.com/unee-t/env"
+	"github.com/unee-t-ins/env"
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
@@ -22,8 +22,8 @@ import (
 )
 
 type handler struct {
-	DSN            string // e.g. "bugzilla:secret@tcp(auroradb.dev.unee-t.com:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL"
-	APIAccessToken string // e.g. O8I9svDTizOfLfdVA5ri
+	DSN            string
+	APIAccessToken string
 	db             *sql.DB
 	Code           env.EnvCode
 }
@@ -45,7 +45,7 @@ func init() {
 // New setups the configuration assuming various parameters have been setup in the AWS account
 func New() (h handler, err error) {
 
-	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("uneet-dev"))
+	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("ins-dev"))
 	if err != nil {
 		log.WithError(err).Fatal("setting up credentials")
 		return
@@ -56,20 +56,8 @@ func New() (h handler, err error) {
 		log.WithError(err).Warn("error getting AWS unee-t env")
 	}
 
-	var mysqlhost string
-	val, ok := os.LookupEnv("MYSQL_HOST")
-	if ok {
-		log.Infof("MYSQL_HOST overridden by local env: %s", val)
-		mysqlhost = val
-	} else {
-		mysqlhost = e.Udomain("auroradb")
-	}
-
 	h = handler{
-		DSN: fmt.Sprintf("%s:%s@tcp(%s:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL&collation=utf8mb4_unicode_520_ci",
-			e.GetSecret("MYSQL_USER"),
-			e.GetSecret("MYSQL_PASSWORD"),
-			mysqlhost),
+		DSN:            e.BugzillaDSN(),
 		APIAccessToken: e.GetSecret("API_ACCESS_TOKEN"),
 		Code:           e.Code,
 	}
