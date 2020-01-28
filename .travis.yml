@@ -4,6 +4,7 @@ language: go
 before_install:
 - curl -sf https://up.apex.sh/install | sudo sh
 - sudo up upgrade
+- pip install --user awscli
 
 services:
     - docker
@@ -21,7 +22,7 @@ script:
 deploy:
  # dev
  - provider: script
-   script: make
+   script: TRAVIS_PROFILE=$AWS_PROFILE_DEV TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_DEV TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_DEV TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh dev
    skip_cleanup: true
    on:
       branch: master
