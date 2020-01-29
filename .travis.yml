@@ -1,8 +1,9 @@
 # Variables needed for this script are stored on Travis Settings for this repo
 
   # For all environments:
-  # - DOCKER_USERNAME
-  # - DOCKER_PASSWORD
+    # - DOCKER_USERNAME
+    # - DOCKER_PASSWORD
+    # - AWS_DEFAULT_REGION
 
   #For dev environment:
     # - AWS_ACCOUNT_USER_ID_DEV
@@ -34,7 +35,7 @@ install:
 - sudo apt-get install jq -y
 
 after_success:
-- test -n "$TRAVIS_TAG" && docker login -u=uneetci -p="$DOCKER_PASSWORD"
+- test -n "$TRAVIS_TAG" && docker login -u=$"DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
 script:
 - go test -v ./...
@@ -42,28 +43,28 @@ script:
 deploy:
  # dev
  - provider: script
-   script: TRAVIS_PROFILE=$AWS_PROFILE_DEV TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_DEV TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_DEV TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh dev
-   skip_cleanup: true
-   on:
+    script: TRAVIS_PROFILE=$AWS_PROFILE_DEV TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_DEV TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_DEV TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh dev
+    edge: true
+    on:
       branch: master
  # demo
  - provider: script
-   script: AWS_ACCESS_KEY_ID=$AWS_915001051872_ID AWS_SECRET_ACCESS_KEY=$AWS_915001051872_SECRET make demo
-   skip_cleanup: true
-   on:
+    script: TRAVIS_PROFILE=$AWS_PROFILE_DEMO TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_DEMO TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_DEMO TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh demo
+    edge: true
+    on:
       tags: true
       branch: master
  # production
  - provider: script
-   script: AWS_ACCESS_KEY_ID=$AWS_192458993663_ID AWS_SECRET_ACCESS_KEY=$AWS_192458993663_SECRET make prod
-   skip_cleanup: true
-   on:
+    script: TRAVIS_PROFILE=$AWS_PROFILE_PROD TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_PROD TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_PROD TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh prod
+    edge: true
+    on:
       tags: true
       branch: master
  - provider: script
-   skip_cleanup: true
-   script: curl -sL https://git.io/goreleaser | bash
-   on:
+    edge: true
+    script: curl -sL https://git.io/goreleaser | bash
+    on:
      tags: true
      condition: $TRAVIS_OS_NAME = linux
 
