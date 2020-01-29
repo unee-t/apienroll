@@ -1,10 +1,30 @@
-sudo: required
+# Variables needed for this script are stored on Travis Settings for this repo
+
+  # For all environments:
+  # - DOCKER_USERNAME
+  # - DOCKER_PASSWORD
+
+  #For dev environment:
+    # - AWS_ACCOUNT_USER_ID_DEV
+    # - AWS_ACCOUNT_SECRET_DEV
+    # - AWS_PROFILE_DEV
+
+  #For Demo environment:
+    # - AWS_ACCOUNT_USER_ID_DEMO
+    # - AWS_ACCOUNT_SECRET_DEMO
+    # - AWS_PROFILE_DEMO
+
+  #For Prod environment:
+    # - AWS_ACCOUNT_USER_ID_PROD
+    # - AWS_ACCOUNT_SECRET_PROD
+    # - AWS_PROFILE_PROD
+
 language: go
 
 before_install:
 - curl -sf https://up.apex.sh/install | sudo sh
-- sudo up upgrade
 - pip install --user awscli
+- export PATH=$PATH:$HOME/.local/bin
 
 services:
     - docker
