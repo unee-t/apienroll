@@ -8,5 +8,5 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gorilla/mux v1.7.3
 	github.com/tj/go v1.8.6
-	github.com/unee-t-ins/env v0.2.2
+	github.com/unee-t/env v0.2.2
 )
