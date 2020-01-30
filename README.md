@@ -16,8 +16,9 @@ The following variables MUST be declared in order for this to work as intended:
 
 These should be decleared in the AWS Parameter Store for this environment.
 
-- STAGE
 - DOMAIN
+- INSTALLATION_ID
+- STAGE
 - EMAIL_FOR_NOTIFICATION_APIENROLL
 - PRIVATE_SUBNET_1
 - PRIVATE_SUBNET_2
