@@ -45,7 +45,13 @@ func init() {
 // New setups the configuration assuming various parameters have been setup in the AWS account
 func New() (h handler, err error) {
 
+// THIS IS WRONG: we should not use "ins-dev" here but the correct value based on
+//  - Installation ID (AWS parameter `INSTALLATION_ID`)
+//	- Stage (AWS parameter `STAGE`) 
+// The value for "ins-dev" is also declared in Travis Setting
+// it is then passed on as the variable `TRAVIS_PROFILE`
 	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("ins-dev"))
+// END THIS IS WRONG
 	if err != nil {
 		log.WithError(err).Fatal("setting up credentials")
 		return
