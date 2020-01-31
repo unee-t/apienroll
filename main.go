@@ -45,18 +45,23 @@ func init() {
 // New setups the configuration assuming various parameters have been setup in the AWS account
 func New() (h handler, err error) {
 
-// THIS IS WRONG: we should not use "ins-dev" here but the correct value based on
+// This code needs the following variables:
 //  - Installation ID (AWS parameter `INSTALLATION_ID`)
 //	- Stage (AWS parameter `STAGE`) 
-// The value for "ins-dev" is also declared in Travis Setting
-// it is then passed on as the variable `TRAVIS_AWS_PROFILE`
-	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("ins-dev"))
-// END THIS IS WRONG
+	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("${INSTALLATION_ID}-${STAGE}"))
 	if err != nil {
 		log.WithError(err).Fatal("setting up credentials")
 		return
 	}
-	cfg.Region = endpoints.ApSoutheast1RegionID
+
+	defaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
+	if !ok {
+		defaultRegion = endpoints.ApSoutheast1RegionID
+	}
+
+	cfg.Region = defaultRegion
+	log.Warnf("Env Region: %s", cfg.Region)
+
 	e, err := env.New(cfg)
 	if err != nil {
 		log.WithError(err).Warn("error getting AWS unee-t env")
