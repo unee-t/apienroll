@@ -54,14 +54,14 @@ These should be declared as Settings in Travis CI for this Repository.
 
 # Deployment:
 
-Deployment is done automatically with Tracis CI:
+Deployment is done automatically with Travis CI:
 - For the DEV environment: each time there is a change in the `master` repo for this codebase
 - For the PROD and DEMO environment: each time we do a tag release for this repo.
 
 # Maintenance:
 
 To get the latest version of the go modules we need. 
-You can run\
+You can run
 `go get -u`
 
 See the [documentation on go modules](https://blog.golang.org/using-go-modules) for more details.
