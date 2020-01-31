@@ -43,14 +43,22 @@ script:
 deploy:
  # dev
  - provider: script
-   script: TRAVIS_AWS_PROFILE=$AWS_PROFILE_DEV TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_DEV TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_DEV TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh dev
+   script: aws configure set profile.$AWS_PROFILE_DEV.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEV &&
+    aws configure set profile.$AWS_PROFILE_DEV.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEV &&
+    aws configure set profile.$AWS_PROFILE_DEV.region $AWS_DEFAULT_REGION &&
+    aws configure --profile $AWS_PROFILE_DEV list &&
+    TRAVIS_PROFILE=$AWS_PROFILE_DEV make dev
    edge: true
    on:
     branch: master
 
  # demo
  - provider: script
-   script: TRAVIS_AWS_PROFILE=$AWS_PROFILE_DEMO TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_DEMO TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_DEMO TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh demo
+   script: aws configure set profile.$AWS_PROFILE_DEMO.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEMO &&
+    aws configure set profile.$AWS_PROFILE_DEMO.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEMO &&
+    aws configure set profile.$AWS_PROFILE_DEMO.region $AWS_DEFAULT_REGION &&
+    aws configure --profile $AWS_PROFILE_DEMO list &&
+    TRAVIS_PROFILE=$AWS_PROFILE_DEMO make demo
    edge: true
    on:
     tags: true
@@ -58,7 +66,11 @@ deploy:
 
  # production
  - provider: script
-   script: TRAVIS_AWS_PROFILE=$AWS_PROFILE_PROD TRAVIS_AWS_ACCESS_KEY_ID=$AWS_ACCOUNT_USER_ID_PROD TRAVIS_AWS_SECRET_ACCESS_KEY=$AWS_ACCOUNT_SECRET_PROD TRAVIS_AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION ./deploy.sh prod
+   script: aws configure set profile.$AWS_PROFILE_PROD.aws_access_key_id $AWS_ACCOUNT_USER_ID_PROD &&
+    aws configure set profile.$AWS_PROFILE_PROD.aws_secret_access_key $AWS_ACCOUNT_SECRET_PROD &&
+    aws configure set profile.$AWS_PROFILE_PROD.region $AWS_DEFAULT_REGION &&
+    aws configure --profile $AWS_PROFILE_PROD list &&
+    TRAVIS_PROFILE=$AWS_PROFILE_PROD make prod
    edge: true
    on:
     tags: true
