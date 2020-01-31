@@ -1,6 +1,3 @@
-# This script is called by the `deploy.sh` file in (this folder)
-# We use this to deploy the environments with Travis CI
-
 # We create a function to simplify getting variables for aws parameter store.
 
 define ssm
