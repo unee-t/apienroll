@@ -26,6 +26,8 @@ These should be decleared in the AWS Parameter Store for this environment.
 - LAMBDA_TO_RDS_SECURITY_GROUP
 - API_ACCESS_TOKEN
 
+Make sure to check the AWS variables needed by the unee-t/env codebase in the [pre-requisite described in the README file]](https://github.com/unee-t/env#pre-requisite).
+
 ## Travic CI variables:
 
 These should be declared as Settings in Travis CI for this Repository.
@@ -55,6 +57,14 @@ These should be declared as Settings in Travis CI for this Repository.
 Deployment is done automatically with Tracis CI:
 - For the DEV environment: each time there is a change in the `master` repo for this codebase
 - For the PROD and DEMO environment: each time we do a tag release for this repo.
+
+# Maintenance:
+
+To get the latest version of the go modules we need. 
+You can run\
+`go get -u`
+
+See the [documentation on go modules](https://blog.golang.org/using-go-modules) for more details.
 
 # More information:
 
