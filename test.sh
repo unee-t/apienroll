@@ -9,7 +9,7 @@
 
 curl -i -X POST \
   http://localhost:3000 \
-  -H "Authorization: Bearer $(aws --profile uneet-dev ssm get-parameters --names API_ACCESS_TOKEN --with-decryption --query Parameters[0].Value --output text)" \
+  -H "Authorization: Bearer $(aws --profile $TRAVIS_AWS_PROFILE ssm get-parameters --names API_ACCESS_TOKEN --with-decryption --query Parameters[0].Value --output text)" \
   -H 'Cache-Control: no-cache' \
   -H 'Content-Type: application/json' \
   -d '{
