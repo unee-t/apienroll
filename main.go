@@ -49,7 +49,7 @@ func New() (h handler, err error) {
 //  - Installation ID (AWS parameter `INSTALLATION_ID`)
 //	- Stage (AWS parameter `STAGE`) 
 // The value for "ins-dev" is also declared in Travis Setting
-// it is then passed on as the variable `TRAVIS_PROFILE`
+// it is then passed on as the variable `TRAVIS_AWS_PROFILE`
 	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("ins-dev"))
 // END THIS IS WRONG
 	if err != nil {

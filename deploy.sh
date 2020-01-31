@@ -18,10 +18,10 @@
 #	- The user has not configured his machine properly.
 #
 # Step 1: Setup AWS CLI
-if ! aws configure --profile $TRAVIS_PROFILE list
+if ! aws configure --profile $TRAVIS_AWS_PROFILE list
 then
     # We tell the user about the issue
-	echo Profile $TRAVIS_PROFILE does not exist >&2
+	echo Profile $TRAVIS_AWS_PROFILE does not exist >&2
 
 	if ! test "$TRAVIS_AWS_ACCESS_KEY_ID"
 	then
@@ -31,13 +31,13 @@ then
 	fi
 
 	echo Attempting to setup one from the environment >&2
-	aws configure set profile.${TRAVIS_PROFILE}.aws_access_key_id $TRAVIS_AWS_ACCESS_KEY_ID
-	aws configure set profile.${TRAVIS_PROFILE}.aws_secret_access_key $TRAVIS_AWS_SECRET_ACCESS_KEY
-	aws configure set profile.${TRAVIS_PROFILE}.region $TRAVIS_AWS_DEFAULT_REGION
+	aws configure set profile.${TRAVIS_AWS_PROFILE}.aws_access_key_id $TRAVIS_AWS_ACCESS_KEY_ID
+	aws configure set profile.${TRAVIS_AWS_PROFILE}.aws_secret_access_key $TRAVIS_AWS_SECRET_ACCESS_KEY
+	aws configure set profile.${TRAVIS_AWS_PROFILE}.region $TRAVIS_AWS_DEFAULT_REGION
 
-	if ! aws configure --profile $TRAVIS_PROFILE list
+	if ! aws configure --profile $TRAVIS_AWS_PROFILE list
 	then
-		echo Profile $TRAVIS_PROFILE does not exist >&2
+		echo Profile $TRAVIS_AWS_PROFILE does not exist >&2
 		exit 1
 	fi
 

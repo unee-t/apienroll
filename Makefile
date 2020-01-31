@@ -4,7 +4,7 @@
 # We create a function to simplify getting variables for aws parameter store.
 
 define ssm
-$(shell aws --profile $(TRAVIS_PROFILE) ssm get-parameters --names $1 --with-decryption --query Parameters[0].Value --output text)
+$(shell aws --profile $(TRAVIS_AWS_PROFILE) ssm get-parameters --names $1 --with-decryption --query Parameters[0].Value --output text)
 endef
 
 # We prepare variables for up in UPJSON and PRODUPJSON.
@@ -17,7 +17,7 @@ endef
 # - PRIVATE_SUBNET_3
 # - LAMBDA_TO_RDS_SECURITY_GROUP
 
-UPJSON = '.profile |= "$(TRAVIS_PROFILE)" \
+UPJSON = '.profile |= "$(TRAVIS_AWS_PROFILE)" \
 		  |.stages.staging |= (.domain = "apienroll.$(call ssm,STAGE).$(call ssm,DOMAIN)" | .zone = "$(call ssm,STAGE).$(call ssm,DOMAIN)") \
 		  | .actions[0].emails |= ["$(call ssm,EMAIL_FOR_NOTIFICATION_APIENROLL)"] \
 		  | .lambda.vpc.subnets |= [ "$(call ssm,PRIVATE_SUBNET_1)", "$(call ssm,PRIVATE_SUBNET_2)", "$(call ssm,PRIVATE_SUBNET_3)" ] \
@@ -25,7 +25,7 @@ UPJSON = '.profile |= "$(TRAVIS_PROFILE)" \
 
 #UPJSON for Production
 
-PRODUPJSON = '.profile |= "$(TRAVIS_PROFILE)" \
+PRODUPJSON = '.profile |= "$(TRAVIS_AWS_PROFILE)" \
 		  |.stages.staging |= (.domain = "apienroll.$(call ssm,DOMAIN)" | .zone = "$(call ssm,DOMAIN)") \
 		  | .actions[0].emails |= ["$(call ssm,EMAIL_FOR_NOTIFICATION_APIENROLL)"] \
 		  | .lambda.vpc.subnets |= [ "$(call ssm,PRIVATE_SUBNET_1)", "$(call ssm,PRIVATE_SUBNET_2)", "$(call ssm,PRIVATE_SUBNET_3)" ] \
