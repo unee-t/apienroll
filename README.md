@@ -50,6 +50,12 @@ These should be declared as Settings in Travis CI for this Repository.
  - AWS_ACCOUNT_SECRET_PROD
  - AWS_PROFILE_PROD
 
+# Deployment:
+
+Deployment is done automatically with Tracis CI:
+- For the DEV environment: each time there is a change in the `master` repo for this codebase
+- For the PROD and DEMO environment: each time we do a tag release for this repo.
+
 # More information:
 
 The API is also documented in our `postman@unee-t.com` Postman account.
