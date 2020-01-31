@@ -50,7 +50,7 @@ deploy:
     TRAVIS_PROFILE=$AWS_PROFILE_DEV make dev
    edge: true
    on:
-    branch: master
+    branch: merge_unee-t_ins_improvements
 
  # demo
  - provider: script
