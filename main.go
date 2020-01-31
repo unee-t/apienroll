@@ -48,7 +48,7 @@ func New() (h handler, err error) {
 // This code needs the following variables:
 //  - Installation ID (AWS parameter `INSTALLATION_ID`)
 //	- Stage (AWS parameter `STAGE`) 
-	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("${INSTALLATION_ID}-${STAGE}"))
+	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("uneet-dev"))
 	if err != nil {
 		log.WithError(err).Fatal("setting up credentials")
 		return
