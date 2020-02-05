@@ -311,6 +311,8 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 		thisEnvironment, err := NewConfig(cfg)
 		if err != nil {
 			log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
+		} else {
+			log.Infof("NewDbConnexion Log: This is the environment: %s", thisEnvironment.environmentId)
 		}
 
 	// cfg also needs the default region.
