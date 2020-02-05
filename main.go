@@ -51,6 +51,7 @@ func init() {
 
 // Why do we need that???
 // type environmentCode int
+// END Why do we need that???
 
 type handlerBzDbConnexion struct {
 	DSN            string // aurora database connection string
