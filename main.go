@@ -267,6 +267,14 @@ func Protect(currentBzConnexion http.Handler, APIAccessToken string) http.Handle
 		var token string
 		// Get token from the Authorization header
 		// format: Authorization: Bearer
+		// This token is coming from the `frontend` (the MEFE)
+		// IF YOU HAVE CHANGED THE API_ACCESS_TOKEN THEN YOU MUST REDEPLOY ALL THE CODEBASE:
+		//	- frontend
+		//	- apienroll
+		//	- unit
+		//	- invite
+		//	- lambda2sqs
+		//	- etc...
 		tokens, ok := r.Header["Authorization"]
 		if ok && len(tokens) >= 1 {
 			token = tokens[0]
@@ -278,7 +286,7 @@ func Protect(currentBzConnexion http.Handler, APIAccessToken string) http.Handle
 			log.Errorf("Protect Error: The Token on the http request is empty")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
-		// Check id this is the correct API Access token
+		// Check if this is the correct API Access token
 		}else if token != APIAccessToken {
 			log.Errorf("Protect Error: The Token on the request (%q) is different from the APIAccessToken (**hidden secret**) that we have configured", token)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
