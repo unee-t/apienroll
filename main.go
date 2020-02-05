@@ -134,7 +134,7 @@ func main() {
 
 	h, err := NewDbConnexion()
 	if err != nil {
-		log.WithError(err).Fatal("error setting configuration")
+		log.WithError(err).Fatal("main Error: We are not able to connect to the BZ database")
 		return
 	}
 
@@ -147,7 +147,7 @@ func main() {
 	app.HandleFunc("/", h.ping).Methods("GET")
 
 	if err := http.ListenAndServe(addr, env.Protect(app, h.APIAccessToken)); err != nil {
-		log.WithError(err).Fatal("error listening")
+		log.WithError(err).Fatal("main Error: We have an error listening to http - API token has been set")
 	}
 
 }
@@ -172,8 +172,8 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&k)
 
 	if err != nil {
-		log.WithError(err).Errorf("Input error")
-		response.BadRequest(w, "Invalid JSON")
+		log.WithError(err).Errorf("enroll Error: We have an Input error - JSON is invalid")
+		response.BadRequest(w, "enroll BadRequest: The request uses Invalid JSON")
 		return
 	}
 	defer r.Body.Close()
@@ -182,23 +182,23 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 		"APIkey": k,
 	})
 
-	ctx.Info("Decoded")
+	ctx.Info("Decoded (whatever this means...)")
 
 	if k.UserAPIkey == "" {
-		response.BadRequest(w, "Missing UserAPIkey")
+		response.BadRequest(w, "enroll BadRequest: We are missing the APIkey that we need to insert")
 		return
 	}
 
 	if k.UserID == "" {
-		response.BadRequest(w, "Missing UserID")
+		response.BadRequest(w, "enroll BadRequest: We are missing the BZ UserID")
 		return
 	}
 
 	err = h.insert(k)
 
 	if err != nil {
-		log.WithError(err).Warnf("failed to insert")
-		response.BadRequest(w, "Failed to insert")
+		log.WithError(err).Warnf("enroll Warning: We were not able to insert the API key for the new user in the BZ database")
+		response.BadRequest(w, "enroll BadRequest: We were not able to insert the API key for the new user in the BZ database")
 		return
 	}
 
@@ -210,8 +210,8 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 func (h handler) ping(w http.ResponseWriter, r *http.Request) {
 	err := h.db.Ping()
 	if err != nil {
-		log.WithError(err).Error("failed to ping database")
+		log.WithError(err).Error("ping Error: we have not been able to ping the BZ database")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	fmt.Fprintf(w, "OK")
+	fmt.Fprintf(w, "OK - we are able to ping the BZ database")
 }
