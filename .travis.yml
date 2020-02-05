@@ -71,4 +71,4 @@ deploy:
     condition: $TRAVIS_OS_NAME = linux
 
 env:
-  - GO111MODULE=on
+  - GO113MODULE=on
