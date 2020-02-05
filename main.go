@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	jsonhandler "github.com/apex/log/handlers/json"
-	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tj/go/http/response"
 	
 	"github.com/unee-t/env"
@@ -21,6 +22,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+var pingPollingFreq = 5 * time.Second
 
 type handler struct {
 	DSN            string
@@ -43,51 +46,93 @@ func init() {
 	}
 }
 
-// New setups the configuration assuming various parameters have been setup in the AWS account
-// TODO: REPLACE WITH THE env.NewBzDbConnexion FUNCTION
-func New() (h handler, err error) {
+// NewDbConnexion setups the configuration assuming various parameters have been setup in the AWS account
+// TODO: REPLACE WITH THE `env.NewBzDbConnexion` FUNCTION
+func NewDbConnexion() (h handler, err error) {
 
-// This code needs the following variables:
-//  - Installation ID (AWS parameter `INSTALLATION_ID`)
-//	- Stage (AWS parameter `STAGE`) 
-	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("uneet-dev"))
+	// We check if the AWS CLI profile we need has been setup in this environment
+		awsCliProfile, ok := os.LookupEnv("TRAVIS_AWS_PROFILE")
+		if ok {
+			log.Infof("NewDbConnexion Log: the AWS CLI profile we use is: %s", awsCliProfile)
+		} else {
+			log.Fatal("NewDbConnexion Fatal: the AWS CLI profile is unset as an environment variable, this is a fatal problem")
+		}
+
+		cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile(awsCliProfile))
+		if err != nil {
+			log.WithError(err).Fatal("NewDbConnexion Fatal: We do not have the AWS credentials we need")
+			return
+		}
+
+	// We get the value for the DEFAULT_REGION
+		defaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
+		if ok {
+			log.Infof("NewDbConnexion Log: DEFAULT_REGION was overridden by local env: %s", defaultRegion)
+		} else {
+			log.Fatal("NewDbConnexion Fatal: DEFAULT_REGION is unset as an environment variable, this is a fatal problem")
+		}
+
+		cfg.Region = defaultRegion
+		log.Infof("NewDbConnexion Log: The AWS region for this environment has been set to: %s", cfg.Region)
+
+	// We get the value for the API_ACCESS_TOKEN
+		apiAccessToken, ok := os.LookupEnv("API_ACCESS_TOKEN")
+		if ok {
+			log.Infof("NewDbConnexion Log: API_ACCESS_TOKEN was overridden by local env: **hidden secret**")
+		} else {
+			log.Fatal("NewDbConnexion Fatal: API_ACCESS_TOKEN is unset as an environment variable, this is a fatal problem")
+		}
+
+	e, err := env.NewConfig(cfg)
 	if err != nil {
-		log.WithError(err).Fatal("setting up credentials")
-		return
-	}
-
-	defaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
-	if !ok {
-		defaultRegion = endpoints.ApSoutheast1RegionID
-	}
-
-	cfg.Region = defaultRegion
-	log.Warnf("Env Region: %s", cfg.Region)
-
-	e, err := New(cfg)
-	if err != nil {
-		log.WithError(err).Warn("error getting AWS unee-t env")
+		log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
 	}
 
 	h = handler{
-		DSN:            e.BugzillaDSN(),
-		APIAccessToken: e.GetSecret("API_ACCESS_TOKEN"),
+		DSN:            e.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
+		APIAccessToken: apiAccessToken,
 		Code:           e.Code,
 	}
 
 	h.db, err = sql.Open("mysql", h.DSN)
 	if err != nil {
-		log.WithError(err).Fatal("error opening database")
+		log.WithError(err).Fatal("NewDbConnexion fatal: error opening database")
 		return
 	}
 
-	return
+	microservicecheck := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "microservice",
+			Help: "Version with DB ping check",
+		},
+		[]string{
+			"commit",
+		},
+	)
 
+	version := os.Getenv("UP_COMMIT")
+
+	go func() {
+		for {
+			if h.db.Ping() == nil {
+				microservicecheck.WithLabelValues(version).Set(1)
+			} else {
+				microservicecheck.WithLabelValues(version).Set(0)
+			}
+			time.Sleep(pingPollingFreq)
+		}
+	}()
+
+	err = prometheus.Register(microservicecheck)
+	if err != nil {
+		log.Warn("NewDbConnexion Warning: prom already registered")
+	}
+	return
 }
 
 func main() {
 
-	h, err := New()
+	h, err := NewDbConnexion()
 	if err != nil {
 		log.WithError(err).Fatal("error setting configuration")
 		return
