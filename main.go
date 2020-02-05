@@ -55,12 +55,12 @@ type handlerBzDbConnexion struct {
 	DSN            string // aurora database connection string
 	APIAccessToken string
 	db             *sql.DB
-	Code           environmentCode
+	environmentId  environmentCode
 }
 
 // environment is the data type to manage the different environment (or STAGE) for a given Unee-T installation
 type environment struct {
-	Code      environmentCode
+	environmentId      environmentCode
 	Cfg       aws.Config
 	AccountID string
 	Stage     string
@@ -158,13 +158,13 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 	// Based on the value of the STAGE variable we do different things
 		switch thisEnvironment.Stage {
 		case "dev":
-			thisEnvironment.Code = EnvDev
+			thisEnvironment.environmentId = EnvDev
 			return thisEnvironment, nil
 		case "prod":
-			thisEnvironment.Code = EnvProd
+			thisEnvironment.environmentId = EnvProd
 			return thisEnvironment, nil
 		case "demo":
-			thisEnvironment.Code = EnvDemo
+			thisEnvironment.environmentId = EnvDemo
 			return thisEnvironment, nil
 		default:
 			log.WithField("stage", thisEnvironment.Stage).Error("NewConfig Error: unknown stage")
@@ -331,7 +331,7 @@ func NewDbConnexion() (h handlerBzDbConnexion, err error) {
 	h = handlerBzDbConnexion{
 		DSN:            e.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
 		APIAccessToken: apiAccessToken,
-		Code:           e.Code,
+		environmentId:  e.environmentId,
 	}
 
 	h.db, err = sql.Open("mysql", h.DSN)
