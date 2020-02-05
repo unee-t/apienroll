@@ -33,8 +33,8 @@ import (
 
 var pingPollingFreq = 5 * time.Second
 
-// APIKey is defined by the Table: user_api_keys https://s.natalian.org/2018-06-01/1527810246_2558x1406.png
-type APIkey struct {
+// BzApiKey is defined by the Table: user_api_keys https://s.natalian.org/2018-06-01/1527810246_2558x1406.png
+type BzApiKey struct {
 	UserID     string `json:"UserId"`
 	UserAPIkey string `json:"userApiKey"`
 }
@@ -392,7 +392,7 @@ func main() {
 
 }
 
-func (h handler) insert(credential APIkey) (err error) {
+func (h handler) insert(credential BzApiKey) (err error) {
 	_, err = h.db.Exec(
 		`INSERT INTO user_api_keys (user_id,
 			api_key,
@@ -408,7 +408,7 @@ func (h handler) insert(credential APIkey) (err error) {
 func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
-	var k APIkey
+	var k BzApiKey
 	err := decoder.Decode(&k)
 
 	if err != nil {
@@ -419,7 +419,7 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	ctx := log.WithFields(log.Fields{
-		"APIkey": k,
+		"The BZ API key for the newly created user has been defined and passed to the BZ database": k,
 	})
 
 	ctx.Info("Decoded (whatever this means...)")
