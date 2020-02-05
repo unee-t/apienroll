@@ -51,7 +51,7 @@ func init() {
 
 type EnvCode int
 
-type handler struct {
+type handlerBzDbConnexion struct {
 	DSN            string // aurora database connection string
 	APIAccessToken string
 	db             *sql.DB
@@ -292,7 +292,7 @@ func Towr(h http.Handler) func(http.ResponseWriter, *http.Request) {
 
 // NewDbConnexion setups the configuration assuming various parameters have been setup in the AWS account
 // TODO: REPLACE WITH THE `env.NewBzDbConnexion` FUNCTION
-func NewDbConnexion() (h handler, err error) {
+func NewDbConnexion() (h handlerBzDbConnexion, err error) {
 
 	// We get the AWS configuration information for the default profile
 
@@ -328,7 +328,7 @@ func NewDbConnexion() (h handler, err error) {
 		log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
 	}
 
-	h = handler{
+	h = handlerBzDbConnexion{
 		DSN:            e.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
 		APIAccessToken: apiAccessToken,
 		Code:           e.Code,
@@ -392,7 +392,7 @@ func main() {
 
 }
 
-func (h handler) insert(credential BzApiKey) (err error) {
+func (h handlerBzDbConnexion) insert(credential BzApiKey) (err error) {
 	_, err = h.db.Exec(
 		`INSERT INTO user_api_keys (user_id,
 			api_key,
@@ -405,7 +405,7 @@ func (h handler) insert(credential BzApiKey) (err error) {
 	return
 }
 
-func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
+func (h handlerBzDbConnexion) enroll(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 	var k BzApiKey
@@ -447,7 +447,7 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h handler) ping(w http.ResponseWriter, r *http.Request) {
+func (h handlerBzDbConnexion) ping(w http.ResponseWriter, r *http.Request) {
 	err := h.db.Ping()
 	if err != nil {
 		log.WithError(err).Error("ping Error: we have not been able to ping the BZ database")
