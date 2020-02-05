@@ -66,6 +66,10 @@ You can run
 
 See the [documentation on go modules](https://blog.golang.org/using-go-modules) for more details.
 
+# Debugging:
+
+This is WIP
+
 # More information:
 
 The API is also documented in our `postman@unee-t.com` Postman account.
