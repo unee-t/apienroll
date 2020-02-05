@@ -272,8 +272,12 @@ func Protect(currentBzConnexion http.Handler, APIAccessToken string) http.Handle
 			token = tokens[0]
 			token = strings.TrimPrefix(token, "Bearer ")
 		}
-		if token == "" || token != APIAccessToken {
-			log.Errorf("Protect Error: Token %q != APIAccessToken %q", token, APIAccessToken)
+		if token == "" {
+			log.Errorf("Protect Error: The Token on the http request is empty")
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}else if token != APIAccessToken {
+			log.Errorf("Protect Error: The Token on the request (%q) is different from the APIAccessToken (**hidden secret**) that we have configured", token, APIAccessToken)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
@@ -353,7 +357,7 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 			log.WithError(err).Fatal("NewDbConnexion fatal: error opening database")
 			return
 		} else {
-			log.Infof("NewDbConnexion Lof: We can access the database")
+			log.Infof("NewDbConnexion Log: We can access the database")
 		}
 
 	microservicecheck := prometheus.NewGaugeVec(
