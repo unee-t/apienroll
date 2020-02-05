@@ -77,7 +77,7 @@ const (
 // GetSecret is the Golang equivalent for
 // aws --profile your-aws-cli-profile ssm get-parameters --names API_ACCESS_TOKEN --with-decryption --query Parameters[0].Value --output text
 
-func (e environment) GetSecret(key string) string {
+func (thisEnvironment environment) GetSecret(key string) string {
 
 	val, ok := os.LookupEnv(key)
 	if ok {
@@ -103,10 +103,10 @@ func (e environment) GetSecret(key string) string {
 // NewConfig setups the configuration assuming various parameters have been setup in the AWS account
 // - DEFAULT_REGION
 // - STAGE
-func NewConfig(cfg aws.Config) (e environment, err error) {
+func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 
 	// Save for ssm
-		e.Cfg = cfg
+		thisEnvironment.Cfg = cfg
 
 		svc := sts.New(cfg)
 		input := &sts.GetCallerIdentityInput{}
@@ -117,8 +117,8 @@ func NewConfig(cfg aws.Config) (e environment, err error) {
 		}
 
 	// We get the ID of the AWS account we use
-		e.AccountID = aws.StringValue(result.Account)
-		log.Infof("NewConfig Log: The AWS Account ID for this environment is: %s", e.AccountID)
+		thisEnvironment.AccountID = aws.StringValue(result.Account)
+		log.Infof("NewConfig Log: The AWS Account ID for this environment is: %s", thisEnvironment.AccountID)
 
 	// We get the value for the DEFAULT_REGION
 		var defaultRegion string
@@ -153,21 +153,21 @@ func NewConfig(cfg aws.Config) (e environment, err error) {
 			log.Fatal("NewConfig fatal: STAGE is unset, this is a fatal problem")
 		}
 
-		e.Stage = stage
+		thisEnvironment.Stage = stage
 
 	// Based on the value of the STAGE variable we do different things
-		switch e.Stage {
+		switch thisEnvironment.Stage {
 		case "dev":
-			e.Code = EnvDev
+			thisEnvironment.Code = EnvDev
 			return e, nil
 		case "prod":
-			e.Code = EnvProd
+			thisEnvironment.Code = EnvProd
 			return e, nil
 		case "demo":
-			e.Code = EnvDemo
+			thisEnvironment.Code = EnvDemo
 			return e, nil
 		default:
-			log.WithField("stage", e.Stage).Error("NewConfig Error: unknown stage")
+			log.WithField("stage", thisEnvironment.Stage).Error("NewConfig Error: unknown stage")
 			return e, nil
 		}
 }
