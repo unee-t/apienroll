@@ -49,6 +49,8 @@ func init() {
 
 // DEBUGGING - Move the code that belongs to unee-t/env here to facilitate debugging
 
+type EnvCode int
+
 type handler struct {
 	DSN            string // aurora database connection string
 	APIAccessToken string
@@ -56,15 +58,13 @@ type handler struct {
 	Code           EnvCode
 }
 
-// Env is how we manage our differing {dev,demo,prod} AWS accounts
-type Env struct {
+// environment is the data type to manage the different environment (or STAGE) for a given Unee-T installation
+type environment struct {
 	Code      EnvCode
 	Cfg       aws.Config
 	AccountID string
 	Stage     string
 }
-
-type EnvCode int
 
 // https://github.com/unee-t/processInvitations/blob/master/sql/1_process_one_invitation_all_scenario_v3.0.sql#L12-L16
 const (
@@ -77,7 +77,7 @@ const (
 // GetSecret is the Golang equivalent for
 // aws --profile your-aws-cli-profile ssm get-parameters --names API_ACCESS_TOKEN --with-decryption --query Parameters[0].Value --output text
 
-func (e Env) GetSecret(key string) string {
+func (e environment) GetSecret(key string) string {
 
 	val, ok := os.LookupEnv(key)
 	if ok {
@@ -103,7 +103,7 @@ func (e Env) GetSecret(key string) string {
 // NewConfig setups the configuration assuming various parameters have been setup in the AWS account
 // - DEFAULT_REGION
 // - STAGE
-func NewConfig(cfg aws.Config) (e Env, err error) {
+func NewConfig(cfg aws.Config) (e environment, err error) {
 
 	// Save for ssm
 		e.Cfg = cfg
@@ -172,7 +172,7 @@ func NewConfig(cfg aws.Config) (e Env, err error) {
 		}
 }
 
-func (e Env) BugzillaDSN() string {
+func (e environment) BugzillaDSN() string {
 
 	// Get the value of the variable BUGZILLA_DB_USER
 		var bugzillaDbUser string
