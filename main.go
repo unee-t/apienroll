@@ -86,7 +86,7 @@ func (thisEnvironment environment) GetSecret(key string) string {
 	}
 	// Ideally environment above is set to avoid costly ssm (parameter store) lookups
 
-	ps := ssm.New(e.Cfg)
+	ps := ssm.New(thisEnvironment.Cfg)
 	in := &ssm.GetParameterInput{
 		Name:           aws.String(key),
 		WithDecryption: aws.Bool(true),
@@ -113,7 +113,7 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 		req := svc.GetCallerIdentityRequest(input)
 		result, err := req.Send(context.TODO())
 		if err != nil {
-			return e, err
+			return thisEnvironment, err
 		}
 
 	// We get the ID of the AWS account we use
@@ -159,16 +159,16 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 		switch thisEnvironment.Stage {
 		case "dev":
 			thisEnvironment.Code = EnvDev
-			return e, nil
+			return thisEnvironment, nil
 		case "prod":
 			thisEnvironment.Code = EnvProd
-			return e, nil
+			return thisEnvironment, nil
 		case "demo":
 			thisEnvironment.Code = EnvDemo
-			return e, nil
+			return thisEnvironment, nil
 		default:
 			log.WithField("stage", thisEnvironment.Stage).Error("NewConfig Error: unknown stage")
-			return e, nil
+			return thisEnvironment, nil
 		}
 }
 
