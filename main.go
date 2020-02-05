@@ -294,7 +294,7 @@ func Towr(h http.Handler) func(http.ResponseWriter, *http.Request) {
 
 // NewDbConnexion setups the configuration assuming various parameters have been setup in the AWS account
 // TODO: REPLACE WITH THE `env.NewBzDbConnexion` FUNCTION
-func NewDbConnexion() (h handlerSqlConnexion, err error) {
+func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 
 	// We get the AWS configuration information for the default profile
 
@@ -330,17 +330,18 @@ func NewDbConnexion() (h handlerSqlConnexion, err error) {
 		log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
 	}
 
-	h = handlerSqlConnexion{
+	bzDbConnexion = handlerSqlConnexion{
 		DSN:            e.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
 		APIAccessToken: apiAccessToken,
 		environmentId:  e.environmentId,
 	}
 
-	h.db, err = sql.Open("mysql", h.DSN)
+	bzDbConnexion.db, err = sql.Open("mysql", bzDbConnexion.DSN)
 	if err != nil {
 		log.WithError(err).Fatal("NewDbConnexion fatal: error opening database")
 		return
 	}
+	// TODO add an else to log that DB connexion worked
 
 	microservicecheck := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -356,7 +357,7 @@ func NewDbConnexion() (h handlerSqlConnexion, err error) {
 
 	go func() {
 		for {
-			if h.db.Ping() == nil {
+			if bzDbConnexion.db.Ping() == nil {
 				microservicecheck.WithLabelValues(version).Set(1)
 			} else {
 				microservicecheck.WithLabelValues(version).Set(0)
@@ -374,28 +375,28 @@ func NewDbConnexion() (h handlerSqlConnexion, err error) {
 
 func main() {
 
-	h, err := NewDbConnexion()
+	currentBzConnexion, err := NewDbConnexion()
 	if err != nil {
 		log.WithError(err).Fatal("main Error: We are not able to connect to the BZ database")
 		return
 	}
 
-	defer h.db.Close()
+	defer currentBzConnexion.db.Close()
 
 	addr := ":" + os.Getenv("PORT")
 
 	app := mux.NewRouter()
-	app.HandleFunc("/", h.enroll).Methods("POST")
-	app.HandleFunc("/", h.ping).Methods("GET")
+	app.HandleFunc("/", currentBzConnexion.enroll).Methods("POST")
+	app.HandleFunc("/", currentBzConnexion.ping).Methods("GET")
 
-	if err := http.ListenAndServe(addr, Protect(app, h.APIAccessToken)); err != nil {
+	if err := http.ListenAndServe(addr, Protect(app, currentBzConnexion.APIAccessToken)); err != nil {
 		log.WithError(err).Fatal("main Error: We have an error listening to http - API token has been set")
 	}
 
 }
 
-func (h handlerSqlConnexion) insert(credential BzApiKey) (err error) {
-	_, err = h.db.Exec(
+func (currentBzConnexion handlerSqlConnexion) insert(credential BzApiKey) (err error) {
+	_, err = currentBzConnexion.db.Exec(
 		`INSERT INTO user_api_keys (user_id,
 			api_key,
 			description
@@ -407,7 +408,7 @@ func (h handlerSqlConnexion) insert(credential BzApiKey) (err error) {
 	return
 }
 
-func (h handlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
+func (currentBzConnexion handlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 	var k BzApiKey
@@ -436,7 +437,7 @@ func (h handlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.insert(k)
+	err = currentBzConnexion.insert(k)
 
 	if err != nil {
 		log.WithError(err).Warnf("enroll Warning: We were not able to insert the API key for the new user in the BZ database")
@@ -449,8 +450,8 @@ func (h handlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h handlerSqlConnexion) ping(w http.ResponseWriter, r *http.Request) {
-	err := h.db.Ping()
+func (currentBzConnexion handlerSqlConnexion) ping(w http.ResponseWriter, r *http.Request) {
+	err := currentBzConnexion.db.Ping()
 	if err != nil {
 		log.WithError(err).Error("ping Error: we have not been able to ping the BZ database")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
