@@ -129,7 +129,7 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 			defaultRegion = valdefaultRegion
 			log.Infof("NewConfig Log: DEFAULT_REGION was overridden by local env: %s", valdefaultRegion)
 		} else {
-			defaultRegion = e.GetSecret("DEFAULT_REGION")
+			defaultRegion = thisEnvironment.GetSecret("DEFAULT_REGION")
 			log.Infof("NewConfig Log: We get the DEFAULT_REGION from the AWS parameter store")
 		}
 	
@@ -147,7 +147,7 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 			stage = valstage
 			log.Infof("NewConfig Log: STAGE was overridden by local env: %s", valstage)
 		} else {
-			defaultRegion = e.GetSecret("STAGE")
+			defaultRegion = thisEnvironment.GetSecret("STAGE")
 			log.Infof("NewConfig Log:  We get the STAGE from the AWS parameter store")
 		}
 	
@@ -174,7 +174,7 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 		}
 }
 
-func (e environment) BugzillaDSN() string {
+func (thisEnvironment environment) BugzillaDSN() string {
 
 	// Get the value of the variable BUGZILLA_DB_USER
 		var bugzillaDbUser string
@@ -183,7 +183,7 @@ func (e environment) BugzillaDSN() string {
 			bugzillaDbUser = valbugzillaDbUser
 			log.Infof("BugzillaDSN Log: BUGZILLA_DB_USER was overridden by local env: %s", valbugzillaDbUser)
 		} else {
-			bugzillaDbUser = e.GetSecret("BUGZILLA_DB_USER")
+			bugzillaDbUser = thisEnvironment.GetSecret("BUGZILLA_DB_USER")
 			log.Infof("BugzillaDSN Log: We get the BUGZILLA_DB_USER from the AWS parameter store")
 		}
 
@@ -198,7 +198,7 @@ func (e environment) BugzillaDSN() string {
 			bugzillaDbPassword = valbugzillaDbPassword
 			log.Infof("BugzillaDSN Log: BUGZILLA_DB_PASSWORD was overridden by local env: **hidden_secret**")
 		} else {
-			bugzillaDbPassword = e.GetSecret("BUGZILLA_DB_PASSWORD")
+			bugzillaDbPassword = thisEnvironment.GetSecret("BUGZILLA_DB_PASSWORD")
 			log.Infof("BugzillaDSN Log: We get the BUGZILLA_DB_PASSWORD from the AWS parameter store")
 		}
 
@@ -213,7 +213,7 @@ func (e environment) BugzillaDSN() string {
 			mysqlhost = valmysqlhost
 			log.Infof("BugzillaDSN Log: MYSQL_HOST was overridden by local env: %s", valmysqlhost)
 		} else {
-			mysqlhost = e.GetSecret("MYSQL_HOST")
+			mysqlhost = thisEnvironment.GetSecret("MYSQL_HOST")
 			log.Infof("BugzillaDSN Log: We get the MYSQL_HOST from the AWS parameter store")
 		}
 
@@ -228,7 +228,7 @@ func (e environment) BugzillaDSN() string {
 			mysqlport = valmysqlport
 			log.Infof("BugzillaDSN Log: MYSQL_PORT was overridden by local env: %s", valmysqlport)
 		} else {
-			mysqlport = e.GetSecret("MYSQL_PORT")
+			mysqlport = thisEnvironment.GetSecret("MYSQL_PORT")
 			log.Infof("BugzillaDSN Log: We get the MYSQL_PORT from the AWS parameter store")
 		}
 
@@ -243,7 +243,7 @@ func (e environment) BugzillaDSN() string {
 			bugzillaDbName = valbugzillaDbName
 			log.Infof("BugzillaDSN Log: BUGZILLA_DB_NAME was overridden by local env: %s", valbugzillaDbName)
 		} else {
-			bugzillaDbName = e.GetSecret("BUGZILLA_DB_NAME")
+			bugzillaDbName = thisEnvironment.GetSecret("BUGZILLA_DB_NAME")
 			log.Infof("BugzillaDSN Log: We get the BUGZILLA_DB_NAME from the AWS parameter store")
 		}
 
@@ -262,7 +262,7 @@ func (e environment) BugzillaDSN() string {
 
 // Protect using: curl -H 'Authorization: Bearer secret' style
 // Modelled after https://github.com/apex/up-examples/blob/master/oss/golang-basic-auth/main.go#L16
-func Protect(h http.Handler, APIAccessToken string) http.Handler {
+func Protect(currentBzConnexion http.Handler, APIAccessToken string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var token string
 		// Get token from the Authorization header
@@ -277,14 +277,14 @@ func Protect(h http.Handler, APIAccessToken string) http.Handler {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		h.ServeHTTP(w, r)
+		currentBzConnexion.ServeHTTP(w, r)
 	})
 }
 
 // Towr is a workaround for gorilla/pat: https://stackoverflow.com/questions/50753049/
 // Wish I could make this simpler
-func Towr(h http.Handler) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) { h.ServeHTTP(w, r) }
+func Towr(currentBzConnexion http.Handler) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) { currentBzConnexion.ServeHTTP(w, r) }
 }
 
 
