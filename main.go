@@ -272,10 +272,13 @@ func Protect(currentBzConnexion http.Handler, APIAccessToken string) http.Handle
 			token = tokens[0]
 			token = strings.TrimPrefix(token, "Bearer ")
 		}
+
+		// Check if the token is empty
 		if token == "" {
 			log.Errorf("Protect Error: The Token on the http request is empty")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
+		// Check id this is the correct API Access token
 		}else if token != APIAccessToken {
 			log.Errorf("Protect Error: The Token on the request (%q) is different from the APIAccessToken (**hidden secret**) that we have configured", token, APIAccessToken)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
