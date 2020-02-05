@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/gorilla/mux"
 	"github.com/tj/go/http/response"
+	
 	"github.com/unee-t/env"
 
 	"github.com/apex/log"
@@ -43,6 +44,7 @@ func init() {
 }
 
 // New setups the configuration assuming various parameters have been setup in the AWS account
+// TODO: REPLACE WITH THE env.NewBzDbConnexion FUNCTION
 func New() (h handler, err error) {
 
 // This code needs the following variables:
@@ -62,7 +64,7 @@ func New() (h handler, err error) {
 	cfg.Region = defaultRegion
 	log.Warnf("Env Region: %s", cfg.Region)
 
-	e, err := env.New(cfg)
+	e, err := New(cfg)
 	if err != nil {
 		log.WithError(err).Warn("error getting AWS unee-t env")
 	}
