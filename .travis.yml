@@ -27,17 +27,30 @@ before_install:
 - export PATH=$PATH:$HOME/.local/bin
 
 services:
-    - docker
+- docker
 
 install:
-- go get -t ./...
+- go get -t
 - sudo apt-get install jq -y
 
 after_success:
 - test -n "$TRAVIS_TAG" && docker login -u=$"DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
 script:
-- go test -v ./...
+  # We configure a specific AWS profile for testing
+  # This will ONLY test the DEV configuration at this stage!
+  - aws configure set profile.travis-test-dev.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEV
+  - aws configure set profile.travis-test-dev.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEV
+  - aws configure set profile.travis-test-dev.region $AWS_DEFAULT_REGION
+  - aws configure --profile travis-test-dev list
+  # We run the script that will define the environment variables we need
+  - export TRAVIS_AWS_PROFILE=travis-test-dev
+  - source ./aws.env
+  # Test if the variables are correctly set as environment variables
+  - ./aws.env.test
+  # We run the go tests
+  - go test -v
+ 
 
 deploy:
  # dev
