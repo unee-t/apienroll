@@ -325,15 +325,15 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 			log.Fatal("NewDbConnexion Fatal: API_ACCESS_TOKEN is unset as an environment variable, this is a fatal problem")
 		}
 
-	e, err := NewConfig(cfg)
+	thisEnvironment, err := NewConfig(cfg)
 	if err != nil {
 		log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
 	}
 
 	bzDbConnexion = handlerSqlConnexion{
-		DSN:            e.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
+		DSN:            thisEnvironment.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
 		APIAccessToken: apiAccessToken,
-		environmentId:  e.environmentId,
+		environmentId:  thisEnvironment.environmentId,
 	}
 
 	bzDbConnexion.db, err = sql.Open("mysql", bzDbConnexion.DSN)
