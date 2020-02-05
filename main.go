@@ -49,18 +49,18 @@ func init() {
 
 // DEBUGGING - Move the code that belongs to unee-t/env here to facilitate debugging
 
-type EnvCode int
+type environmentCode int
 
 type handlerBzDbConnexion struct {
 	DSN            string // aurora database connection string
 	APIAccessToken string
 	db             *sql.DB
-	Code           EnvCode
+	Code           environmentCode
 }
 
 // environment is the data type to manage the different environment (or STAGE) for a given Unee-T installation
 type environment struct {
-	Code      EnvCode
+	Code      environmentCode
 	Cfg       aws.Config
 	AccountID string
 	Stage     string
@@ -68,7 +68,7 @@ type environment struct {
 
 // https://github.com/unee-t/processInvitations/blob/master/sql/1_process_one_invitation_all_scenario_v3.0.sql#L12-L16
 const (
-	EnvUnknown EnvCode = iota // Oops
+	EnvUnknown environmentCode = iota // Oops
 	EnvDev                    // Development aka Staging
 	EnvProd                   // Production
 	EnvDemo                   // Demo, which is like Production, for prospective customers to try
