@@ -1,27 +1,26 @@
-# Variables needed for this script are stored on Travis Settings for this repo
-
-  # For all environments:
-    # - DOCKER_USERNAME
-    # - DOCKER_PASSWORD
-    # - AWS_DEFAULT_REGION
-
-  #For dev environment:
-    # - AWS_ACCOUNT_USER_ID_DEV
-    # - AWS_ACCOUNT_SECRET_DEV
-    # - AWS_PROFILE_DEV
-
-  #For Demo environment:
-    # - AWS_ACCOUNT_USER_ID_DEMO
-    # - AWS_ACCOUNT_SECRET_DEMO
-    # - AWS_PROFILE_DEMO
-
-  #For Prod environment:
-    # - AWS_ACCOUNT_USER_ID_PROD
-    # - AWS_ACCOUNT_SECRET_PROD
-    # - AWS_PROFILE_PROD
+# Variables needed for this script are stored on Travis Settings
+#  - For all environments:
+#    - AWS_DEFAULT_REGION
+#    - DOCKER_USERNAME
+#    - DOCKER_PASSWORD
+#  - For dev environment:
+#    - AWS_ACCOUNT_USER_ID_DEV
+#    - AWS_ACCOUNT_SECRET_DEV
+#    - AWS_PROFILE_DEV
+#  - For Demo environment:
+#   - AWS_ACCOUNT_USER_ID_DEMO
+#   - AWS_ACCOUNT_SECRET_DEMO
+#   - AWS_PROFILE_DEMO
+# - For Prod environment:
+#   - AWS_ACCOUNT_USER_ID_PROD
+#   - AWS_ACCOUNT_SECRET_PROD
+#   - AWS_PROFILE_PROD
 
 language: go
 
+go:
+  - 1.13.x
+ 
 before_install:
 - curl -sf https://up.apex.sh/install | sudo sh
 - pip install --user awscli
