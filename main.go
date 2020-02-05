@@ -297,23 +297,33 @@ func Towr(currentBzConnexion http.Handler) func(http.ResponseWriter, *http.Reque
 func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 
 	// We get the AWS configuration information for the default profile
-
 		cfg, err := external.LoadDefaultAWSConfig()
 		if err != nil {
 			log.WithError(err).Fatal("NewDbConnexion Fatal: We do not have the AWS credentials we need")
 			return
 		}
 
-		// cfg also needs the default region.
-		// We get the value for the DEFAULT_REGION
-			defaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
-			if ok {
-				log.Infof("NewDbConnexion Log: DEFAULT_REGION was overridden by local env: %s", defaultRegion)
-			} else {
-				log.Fatal("NewDbConnexion Fatal: DEFAULT_REGION is unset as an environment variable, this is a fatal problem")
-			}
-			
-			// Set the AWS Region that the service clients should use
+	// We declare the environment we are in
+		thisEnvironment, err := NewConfig(cfg)
+		if err != nil {
+			log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
+		}
+
+	// cfg also needs the default region.
+	// We get the value for the DEFAULT_REGION
+		defaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
+		if ok {
+			log.Infof("NewDbConnexion Log: DEFAULT_REGION was overridden by local env: %s", defaultRegion)
+		} else {
+			defaultRegion = thisEnvironment.GetSecret("DEFAULT_REGION")
+			log.Infof("NewDbConnexion Log: We get the DEFAULT_REGION from the AWS parameter store")
+		}
+	
+		if defaultRegion == "" {
+			log.Fatal("NewConfig fatal: DEFAULT_REGION is unset, this is a fatal problem")
+		}
+		
+		// Set the AWS Region that the service clients should use
 			cfg.Region = defaultRegion
 			log.Infof("NewDbConnexion Log: The AWS region for this environment has been set to: %s", cfg.Region)
 
@@ -322,26 +332,29 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 		if ok {
 			log.Infof("NewDbConnexion Log: API_ACCESS_TOKEN was overridden by local env: **hidden secret**")
 		} else {
-			log.Fatal("NewDbConnexion Fatal: API_ACCESS_TOKEN is unset as an environment variable, this is a fatal problem")
+			apiAccessToken = thisEnvironment.GetSecret("API_ACCESS_TOKEN")
+			log.Infof("NewDbConnexion Log: We get the API_ACCESS_TOKEN from the AWS parameter store")
+		}
+	
+		if apiAccessToken == "" {
+			log.Fatal("NewConfig fatal: API_ACCESS_TOKEN is unset, this is a fatal problem")
 		}
 
-	thisEnvironment, err := NewConfig(cfg)
-	if err != nil {
-		log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
-	}
-
-	bzDbConnexion = handlerSqlConnexion{
-		DSN:            thisEnvironment.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
-		APIAccessToken: apiAccessToken,
-		environmentId:  thisEnvironment.environmentId,
-	}
-
-	bzDbConnexion.db, err = sql.Open("mysql", bzDbConnexion.DSN)
-	if err != nil {
-		log.WithError(err).Fatal("NewDbConnexion fatal: error opening database")
-		return
-	}
-	// TODO add an else to log that DB connexion worked
+	// We have everything --> We create the database connexion string
+		bzDbConnexion = handlerSqlConnexion{
+			DSN:            thisEnvironment.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
+			APIAccessToken: apiAccessToken,
+			environmentId:  thisEnvironment.environmentId,
+		}
+	
+	// Test if this is working as it should
+		bzDbConnexion.db, err = sql.Open("mysql", bzDbConnexion.DSN)
+		if err != nil {
+			log.WithError(err).Fatal("NewDbConnexion fatal: error opening database")
+			return
+		} else {
+			log.Infof("NewDbConnexion Lof: We can access the database")
+		}
 
 	microservicecheck := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -353,7 +366,8 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 		},
 	)
 
-	version := os.Getenv("UP_COMMIT")
+	// What is the version of this commit
+		version := os.Getenv("UP_COMMIT")
 
 	go func() {
 		for {
