@@ -57,7 +57,7 @@ deploy:
    script: aws configure set profile.$AWS_PROFILE_DEV.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEV && aws configure set profile.$AWS_PROFILE_DEV.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEV && aws configure set profile.$AWS_PROFILE_DEV.region $AWS_DEFAULT_REGION && aws configure --profile $AWS_PROFILE_DEV list && export TRAVIS_AWS_PROFILE=$AWS_PROFILE_DEV && . ./aws.env && go test -v && make dev
    edge: true
    on:
-     branch: master
+     branch: merge_unee-t_ins_improvements
  # demo
  - provider: script
    script: aws configure set profile.$AWS_PROFILE_DEMO.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEMO && aws configure set profile.$AWS_PROFILE_DEMO.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEMO && aws configure set profile.$AWS_PROFILE_DEMO.region $AWS_DEFAULT_REGION && aws configure --profile $AWS_PROFILE_DEMO list && export TRAVIS_AWS_PROFILE=$AWS_PROFILE_DEMO && . ./aws.env && make demo
