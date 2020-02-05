@@ -377,8 +377,10 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 		for {
 			if bzDbConnexion.db.Ping() == nil {
 				microservicecheck.WithLabelValues(version).Set(1)
+				log.Infof("NewDbConnexion Log: Ping of the DB exited with 1")
 			} else {
-				microservicecheck.WithLabelValues(version).Set(0)
+				microservicecheck.WithLabelValues(version).Set(0)				
+				log.Infof("NewDbConnexion Log: Ping of the DB exited with 0")
 			}
 			time.Sleep(pingPollingFreq)
 		}
@@ -387,6 +389,8 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 	err = prometheus.Register(microservicecheck)
 	if err != nil {
 		log.Warn("NewDbConnexion Warning: prom already registered")
+	} else {
+		log.Infof("NewDbConnexion Log: prometheus registration is OK")
 	}
 	return
 }
@@ -397,6 +401,8 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("main Error: We are not able to connect to the BZ database")
 		return
+	}else {
+		log.Infof("apienroll main Log: We have correctly set the information we need to connect to the BZ database")
 	}
 
 	defer currentBzConnexion.db.Close()
@@ -408,7 +414,9 @@ func main() {
 	app.HandleFunc("/", currentBzConnexion.ping).Methods("GET")
 
 	if err := http.ListenAndServe(addr, Protect(app, currentBzConnexion.APIAccessToken)); err != nil {
-		log.WithError(err).Fatal("main Error: We have an error listening to http - API token has been set")
+		log.WithError(err).Fatal("apienroll main Error: We have an error listening to http - API token has been set")
+	}else {
+		log.Infof("apienroll main Log: No error listening to http - API token has been set")
 	}
 
 }
@@ -423,6 +431,7 @@ func (currentBzConnexion handlerSqlConnexion) insert(credential BzApiKey) (err e
 		credential.UserAPIkey,
 		"MEFE Access Key",
 	)
+	log.Infof("apienroll insert Log: We have inserted the Bz User API Key into the BZ database")
 	return
 }
 
@@ -436,7 +445,10 @@ func (currentBzConnexion handlerSqlConnexion) enroll(w http.ResponseWriter, r *h
 		log.WithError(err).Errorf("enroll Error: We have an Input error - JSON is invalid")
 		response.BadRequest(w, "enroll BadRequest: The request uses Invalid JSON")
 		return
+	}else {
+		log.Infof("apienroll enroll Log: No error here")
 	}
+	
 	defer r.Body.Close()
 
 	ctx := log.WithFields(log.Fields{
@@ -461,6 +473,8 @@ func (currentBzConnexion handlerSqlConnexion) enroll(w http.ResponseWriter, r *h
 		log.WithError(err).Warnf("enroll Warning: We were not able to insert the API key for the new user in the BZ database")
 		response.BadRequest(w, "enroll BadRequest: We were not able to insert the API key for the new user in the BZ database")
 		return
+	}else {
+		log.Infof("apienroll enroll Log: No error when inserting the API Key for the new user in the BZ database here")
 	}
 
 	response.OK(w)
@@ -473,6 +487,8 @@ func (currentBzConnexion handlerSqlConnexion) ping(w http.ResponseWriter, r *htt
 	if err != nil {
 		log.WithError(err).Error("ping Error: we have not been able to ping the BZ database")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}else {
+		log.Infof("apienroll ping Log: we are able to ping the BZ database")
 	}
 	fmt.Fprintf(w, "OK - we are able to ping the BZ database")
 }
