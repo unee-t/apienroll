@@ -147,7 +147,7 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 			stage = valstage
 			log.Infof("NewConfig Log: STAGE was overridden by local env: %s", valstage)
 		} else {
-			defaultRegion = thisEnvironment.GetSecret("STAGE")
+			stage = thisEnvironment.GetSecret("STAGE")
 			log.Infof("NewConfig Log:  We get the STAGE from the AWS parameter store")
 		}
 	
