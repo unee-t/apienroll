@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,26 +10,21 @@ import (
 
 	jsonhandler "github.com/apex/log/handlers/json"
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tj/go/http/response"
 	
-	//"github.com/unee-t/env"//
+	"github.com/unee-t/env"
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
-
-	"database/sql"
-
-	_ "github.com/go-sql-driver/mysql"
-
-	// DEBUGGING
-	"context"
-	"strings"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	// END DEBUGGING
+	"github.com/prometheus/client_golang/prometheus"
+
+	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var pingPollingFreq = 5 * time.Second
@@ -48,38 +44,41 @@ func init() {
 }
 
 // DEBUGGING - Move the code that belongs to unee-t/env here to facilitate debugging
+// TO DO - FIND OUT HOW WE CAN MOVE THAT CODE BACK TO `unee-t/env`
 
-// Why do we need that???
-// type environmentCode int
-// END Why do we need that???
+// Insert code to create the Db connexion...
 
-type handlerSqlConnexion struct {
+// We need this so it can be exported
+type EnvironmentId int
+
+//HandlerSqlConnexion is a type of variable to help us manage our connexion to the SQL databases
+type HandlerSqlConnexion struct {
 	DSN            string // aurora database connection string
 	APIAccessToken string
 	db             *sql.DB
-	environmentId  int
+	environmentId  EnvironmentId
 }
 
-// environment is the data type to manage the different environment (or STAGE) for a given Unee-T installation
-type environment struct {
-	environmentId   int
+// Environment is a type of variable to help us differentiata each of our environments {dev,demo,prod}.
+type Environment struct {
+	environmentId   EnvironmentId
 	Cfg       		aws.Config
 	AccountID 		string
-	Stage		    string
+	Stage     		string
 }
 
 // https://github.com/unee-t/processInvitations/blob/master/sql/1_process_one_invitation_all_scenario_v3.0.sql#L12-L16
 const (
-	EnvUnknown int = iota	  // Oops
-	EnvDev                    // Development aka Staging
-	EnvProd                   // Production
-	EnvDemo                   // Demo, which is like Production, for prospective customers to try
+	EnvUnknown EnvironmentId = iota 	// Oops
+	EnvDev								// Development aka Staging
+	EnvProd								// Production
+	EnvDemo								// Demo, which is like Production, for prospective customers to try
 )
 
 // GetSecret is the Golang equivalent for
 // aws --profile your-aws-cli-profile ssm get-parameters --names API_ACCESS_TOKEN --with-decryption --query Parameters[0].Value --output text
 
-func (thisEnvironment environment) GetSecret(key string) string {
+func (thisEnvironment Environment) GetSecret(key string) string {
 
 	val, ok := os.LookupEnv(key)
 	if ok {
@@ -105,7 +104,7 @@ func (thisEnvironment environment) GetSecret(key string) string {
 // NewConfig setups the configuration assuming various parameters have been setup in the AWS account
 // - DEFAULT_REGION
 // - STAGE
-func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
+func NewConfig(cfg aws.Config) (thisEnvironment Environment, err error) {
 
 	// Save for ssm
 		thisEnvironment.Cfg = cfg
@@ -174,7 +173,8 @@ func NewConfig(cfg aws.Config) (thisEnvironment environment, err error) {
 		}
 }
 
-func (thisEnvironment environment) BugzillaDSN() string {
+// Bugzilla DSN Build the string that will allow connection to the BZ database from AWS Parameter store variables
+func (thisEnvironment Environment) BugzillaDSN() string {
 
 	// Get the value of the variable BUGZILLA_DB_USER
 		var bugzillaDbUser string
@@ -260,56 +260,8 @@ func (thisEnvironment environment) BugzillaDSN() string {
 			bugzillaDbName)
 }
 
-// Protect using: curl -H 'Authorization: Bearer secret' style
-// Modelled after https://github.com/apex/up-examples/blob/master/oss/golang-basic-auth/main.go#L16
-func Protect(currentBzConnexion http.Handler, APIAccessToken string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var token string
-		// Get token from the Authorization header
-		// format: Authorization: Bearer
-		// This token is coming from the `frontend` (the MEFE)
-		// IF YOU HAVE CHANGED THE API_ACCESS_TOKEN THEN YOU MUST REDEPLOY ALL THE CODEBASE:
-		//	- frontend
-		//	- apienroll
-		//	- unit
-		//	- invite
-		//	- lambda2sqs
-		//	- etc...
-		tokens, ok := r.Header["Authorization"]
-		if ok && len(tokens) >= 1 {
-			token = tokens[0]
-			token = strings.TrimPrefix(token, "Bearer ")
-		}
-
-		// Check if the token is empty
-		if token == "" {
-			log.Errorf("Protect Error: The Token on the http request is empty")
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		// Check if this is the correct API Access token
-		}else if token != APIAccessToken {
-			log.Errorf("Protect Error: The Token on the request (%q) is different from the APIAccessToken (**hidden secret**) that we have configured", token)
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-		currentBzConnexion.ServeHTTP(w, r)
-	})
-}
-
-// Towr is a workaround for gorilla/pat: https://stackoverflow.com/questions/50753049/
-// Wish I could make this simpler
-func Towr(currentBzConnexion http.Handler) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) { currentBzConnexion.ServeHTTP(w, r) }
-}
-
-
-// END DEBUGGING
-
-
-
-// NewDbConnexion setups the configuration assuming various parameters have been setup in the AWS account
-// TODO: REPLACE WITH THE `env.NewBzDbConnexion` FUNCTION
-func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
+// NewDbConnexion setups what we need to access the DB assuming various parameters have been setup in the AWS account
+func NewDbConnexion() (bzDbConnexion HandlerSqlConnexion, err error) {
 
 	// We get the AWS configuration information for the default profile
 		cfg, err := external.LoadDefaultAWSConfig()
@@ -358,7 +310,7 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 		}
 
 	// We have everything --> We create the database connexion string
-		bzDbConnexion = handlerSqlConnexion{
+		bzDbConnexion = HandlerSqlConnexion{
 			DSN:            thisEnvironment.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
 			APIAccessToken: apiAccessToken,
 			environmentId:  thisEnvironment.environmentId,
@@ -408,6 +360,9 @@ func NewDbConnexion() (bzDbConnexion handlerSqlConnexion, err error) {
 	return
 }
 
+// END DEBUGGING
+// END TO DO - FIND OUT HOW WE CAN MOVE THAT CODE BACK TO `unee-t/env`
+
 func main() {
 
 	currentBzConnexion, err := NewDbConnexion()
@@ -426,7 +381,7 @@ func main() {
 	app.HandleFunc("/", currentBzConnexion.enroll).Methods("POST")
 	app.HandleFunc("/", currentBzConnexion.ping).Methods("GET")
 
-	if err := http.ListenAndServe(addr, Protect(app, currentBzConnexion.APIAccessToken)); err != nil {
+	if err := http.ListenAndServe(addr, env.Protect(app, currentBzConnexion.APIAccessToken)); err != nil {
 		log.WithError(err).Fatal("apienroll main Error: We have an error listening to http - API token has been set")
 	}else {
 		log.Infof("apienroll main Log: No error listening to http - API token has been set")
@@ -434,7 +389,7 @@ func main() {
 
 }
 
-func (currentBzConnexion handlerSqlConnexion) insert(credential BzApiKey) (err error) {
+func (currentBzConnexion HandlerSqlConnexion) insert(credential BzApiKey) (err error) {
 	_, err = currentBzConnexion.db.Exec(
 		`INSERT INTO user_api_keys (user_id,
 			api_key,
@@ -448,7 +403,7 @@ func (currentBzConnexion handlerSqlConnexion) insert(credential BzApiKey) (err e
 	return
 }
 
-func (currentBzConnexion handlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
+func (currentBzConnexion HandlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 	var k BzApiKey
@@ -495,7 +450,7 @@ func (currentBzConnexion handlerSqlConnexion) enroll(w http.ResponseWriter, r *h
 
 }
 
-func (currentBzConnexion handlerSqlConnexion) ping(w http.ResponseWriter, r *http.Request) {
+func (currentBzConnexion HandlerSqlConnexion) ping(w http.ResponseWriter, r *http.Request) {
 	err := currentBzConnexion.db.Ping()
 	if err != nil {
 		log.WithError(err).Error("ping Error: we have not been able to ping the BZ database")
