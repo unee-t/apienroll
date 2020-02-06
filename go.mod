@@ -9,5 +9,5 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/prometheus/client_golang v1.4.0
 	github.com/tj/go v1.8.6
-	github.com/unee-t/env v1.0.0
+	github.com/unee-t/env v1.0.1
 )
