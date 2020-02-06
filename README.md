@@ -68,7 +68,29 @@ See the [documentation on go modules](https://blog.golang.org/using-go-modules) 
 
 # Debugging:
 
-This is WIP
+Because we are relying heavily on AWS, it impossible to debug locally.
+
+## Before deployment:
+
+Tests are done on Travis CI before deployment
+
+## When the Lambdas have been deployed to AWS:
+
+Everything is running on AWS this is where you'll find useful information to debug
+
+
+# Logs:
+
+## Before deployment:
+
+Check the Travis CI log for the build job for this repository each time you 
+- push a new PR
+- Merge a PR into the Master Branch
+- Create a new Tag Release
+
+## When the Lambdas have been deployed to AWS:
+
+Logs are available in the AWS Cloudwatch for your environment under `log groups` >> `/aws/lambda/apienroll`
 
 # More information:
 
