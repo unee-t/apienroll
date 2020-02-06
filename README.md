@@ -55,7 +55,7 @@ These should be declared as Settings in Travis CI for this Repository.
 # Deployment:
 
 Deployment is done automatically with Travis CI:
-- For the DEV environment: each time there is a change in the `master` repo for this codebase
+- For the DEV environment: each time there is a change in the `master` repo for this codebase.
 - For the PROD and DEMO environment: each time we do a tag release for this repo.
 
 # Maintenance:
@@ -78,7 +78,6 @@ Tests are done on Travis CI before deployment
 
 Everything is running on AWS this is where you'll find useful information to debug
 
-
 # Logs:
 
 ## Before deployment:
@@ -91,6 +90,24 @@ Check the Travis CI log for the build job for this repository each time you
 ## When the Lambdas have been deployed to AWS:
 
 Logs are available in the AWS Cloudwatch for your environment under `log groups` >> `/aws/lambda/apienroll`
+
+## Check if things were correctly deployed:
+
+You can check if a build has been completed successfully in a given environment by checking the AWS ECS >> Task Definition 
+
+**TODO: add more information on how we can find more info on the date of the latest Task that was run (date, build, etc...)**
+
+# Common issues:
+
+## API Access token issues:
+ 
+If you change the AWS Secret for the API_ACCESS_TOKEN then you MUST redeploy all the codebase
+- frontend
+- apienroll
+- unit
+- invite
+- lambda2sqs
+- etc...
 
 # More information:
 
