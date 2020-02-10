@@ -399,8 +399,14 @@ func (currentBzConnexion HandlerSqlConnexion) insert(credential BzApiKey) (err e
 		credential.UserAPIkey,
 		"MEFE Access Key",
 	)
-	log.Infof("apienroll insert Log: We have inserted the Bz User API Key into the BZ database")
-	return
+
+	if err != nil {
+		log.WithError(err).Errorf("apienroll insert Error: Not able to insert new BZ user API key in the BZ database")
+		return
+	}else {
+		log.Infof("apienroll insert Log: We have inserted the Bz User API Key into the BZ database")
+		return
+	}
 }
 
 func (currentBzConnexion HandlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
@@ -410,39 +416,39 @@ func (currentBzConnexion HandlerSqlConnexion) enroll(w http.ResponseWriter, r *h
 	err := decoder.Decode(&k)
 
 	if err != nil {
-		log.WithError(err).Errorf("enroll Error: We have an Input error - JSON is invalid")
-		response.BadRequest(w, "enroll BadRequest: The request uses Invalid JSON")
+		log.WithError(err).Errorf("apienroll enroll Error: We have an Input error - JSON is invalid")
+		response.BadRequest(w, "apienroll enroll BadRequest: The request uses Invalid JSON")
 		return
 	}else {
-		log.Infof("apienroll enroll Log: No error here")
+		log.Infof("apienroll enroll Log: No error here JSON is valid")
 	}
 	
 	defer r.Body.Close()
 
 	ctx := log.WithFields(log.Fields{
-		"The BZ API key for the newly created user has been defined and passed to the BZ database": k,
+		"apienroll enroll Log: The BZ API key for the newly created user has been defined": k,
 	})
 
-	ctx.Info("Decoded (whatever this means...)")
+	ctx.Info("apienroll enroll Log: Decoded (whatever this means...)")
 
 	if k.UserAPIkey == "" {
-		response.BadRequest(w, "enroll BadRequest: We are missing the APIkey that we need to insert")
+		response.BadRequest(w, "apienroll enroll BadRequest: We are missing the APIkey that we need to insert")
 		return
 	}
 
 	if k.UserID == "" {
-		response.BadRequest(w, "enroll BadRequest: We are missing the BZ UserID")
+		response.BadRequest(w, "apienroll enroll BadRequest: We are missing the BZ UserID")
 		return
 	}
 
 	err = currentBzConnexion.insert(k)
 
 	if err != nil {
-		log.WithError(err).Warnf("enroll Warning: We were not able to insert the API key for the new user in the BZ database")
-		response.BadRequest(w, "enroll BadRequest: We were not able to insert the API key for the new user in the BZ database")
+		log.WithError(err).Warnf("apienroll enroll Warning: We were not able to insert the API key for the new user in the BZ database")
+		response.BadRequest(w, "apienroll enroll BadRequest: We were not able to insert the API key for the new user in the BZ database")
 		return
 	}else {
-		log.Infof("apienroll enroll Log: No error when inserting the API Key for the new user in the BZ database here")
+		log.Infof("apienroll enroll Log: No error when inserting the API Key for the new user in the BZ database")
 	}
 
 	response.OK(w)
