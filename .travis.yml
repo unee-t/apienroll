@@ -1,50 +1,77 @@
-sudo: required
+# Variables needed for this script are stored on Travis Settings
+#  - For all environments:
+#    - AWS_DEFAULT_REGION
+#    - DOCKER_USERNAME
+#    - DOCKER_PASSWORD
+#  - For dev environment:
+#    - AWS_ACCOUNT_USER_ID_DEV
+#    - AWS_ACCOUNT_SECRET_DEV
+#    - AWS_PROFILE_DEV
+#  - For Demo environment:
+#   - AWS_ACCOUNT_USER_ID_DEMO
+#   - AWS_ACCOUNT_SECRET_DEMO
+#   - AWS_PROFILE_DEMO
+# - For Prod environment:
+#   - AWS_ACCOUNT_USER_ID_PROD
+#   - AWS_ACCOUNT_SECRET_PROD
+#   - AWS_PROFILE_PROD
+
 language: go
+
+go:
+ - 1.13.x
 
 before_install:
 - curl -sf https://up.apex.sh/install | sudo sh
-- sudo up upgrade
+- pip install --user awscli
+- export PATH=$PATH:$HOME/.local/bin
 
 services:
-    - docker
+- docker
 
 install:
-- go get -t ./...
+- go get -t
 - sudo apt-get install jq -y
 
 after_success:
-- test -n "$TRAVIS_TAG" && docker login -u=uneetci -p="$DOCKER_PASSWORD"
+- test -n "$TRAVIS_TAG" && docker login -u=$"DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
 script:
-- go test -v ./...
+ # We configure a specific AWS profile for testing
+ # This will ONLY test the DEV configuration at this stage!
+ - aws configure set profile.travis-test-dev.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEV
+ - aws configure set profile.travis-test-dev.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEV
+ - aws configure set profile.travis-test-dev.region $AWS_DEFAULT_REGION
+ - aws configure --profile travis-test-dev list
+ # We run the script that will define the environment variables we need
+ - export TRAVIS_AWS_PROFILE=travis-test-dev
+ - source ./aws.env
+ # Test if the variables are correctly set as environment variables
+ - ./aws.env.test
+ # We run the go tests
+ - go test -v
 
 deploy:
  # dev
  - provider: script
-   script: make
-   skip_cleanup: true
+   script: aws configure set profile.$AWS_PROFILE_DEV.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEV && aws configure set profile.$AWS_PROFILE_DEV.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEV && aws configure set profile.$AWS_PROFILE_DEV.region $AWS_DEFAULT_REGION && aws configure --profile $AWS_PROFILE_DEV list && export TRAVIS_AWS_PROFILE=$AWS_PROFILE_DEV && . ./aws.env && go test -v && make dev
+   edge: true
    on:
-      branch: master
+     branch: merge_unee-t_ins_improvements
  # demo
  - provider: script
-   script: AWS_ACCESS_KEY_ID=$AWS_915001051872_ID AWS_SECRET_ACCESS_KEY=$AWS_915001051872_SECRET make demo
-   skip_cleanup: true
+   script: aws configure set profile.$AWS_PROFILE_DEMO.aws_access_key_id $AWS_ACCOUNT_USER_ID_DEMO && aws configure set profile.$AWS_PROFILE_DEMO.aws_secret_access_key $AWS_ACCOUNT_SECRET_DEMO && aws configure set profile.$AWS_PROFILE_DEMO.region $AWS_DEFAULT_REGION && aws configure --profile $AWS_PROFILE_DEMO list && export TRAVIS_AWS_PROFILE=$AWS_PROFILE_DEMO && . ./aws.env && make demo
+   edge: true
    on:
-      tags: true
-      branch: master
- # production
- - provider: script
-   script: AWS_ACCESS_KEY_ID=$AWS_192458993663_ID AWS_SECRET_ACCESS_KEY=$AWS_192458993663_SECRET make prod
-   skip_cleanup: true
-   on:
-      tags: true
-      branch: master
- - provider: script
-   skip_cleanup: true
-   script: curl -sL https://git.io/goreleaser | bash
-   on:
+     branch: master
      tags: true
-     condition: $TRAVIS_OS_NAME = linux
+ # prod
+ - provider: script
+   script: aws configure set profile.$AWS_PROFILE_PROD.aws_access_key_id $AWS_ACCOUNT_USER_ID_PROD && aws configure set profile.$AWS_PROFILE_PROD.aws_secret_access_key $AWS_ACCOUNT_SECRET_PROD && aws configure set profile.$AWS_PROFILE_PROD.region $AWS_DEFAULT_REGION && aws configure --profile $AWS_PROFILE_PROD list && export TRAVIS_AWS_PROFILE=$AWS_PROFILE_PROD && . ./aws.env && make prod
+   edge: true
+   on:
+     branch: master
+     tags: true
 
 env:
-  - GO111MODULE=on
+ - GO113MODULE=on

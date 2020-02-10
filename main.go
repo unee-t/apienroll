@@ -1,35 +1,36 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	jsonhandler "github.com/apex/log/handlers/json"
-	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
-	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/gorilla/mux"
 	"github.com/tj/go/http/response"
+	
 	"github.com/unee-t/env"
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/external"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type handler struct {
-	DSN            string // e.g. "bugzilla:secret@tcp(auroradb.dev.unee-t.com:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL"
-	APIAccessToken string // e.g. O8I9svDTizOfLfdVA5ri
-	db             *sql.DB
-	Code           env.EnvCode
-}
+var pingPollingFreq = 5 * time.Second
 
-// APIKey is defined by the Table: user_api_keys https://s.natalian.org/2018-06-01/1527810246_2558x1406.png
-type APIkey struct {
+// BzApiKey is defined by the Table: user_api_keys https://s.natalian.org/2018-06-01/1527810246_2558x1406.png
+type BzApiKey struct {
 	UserID     string `json:"UserId"`
 	UserAPIkey string `json:"userApiKey"`
 }
@@ -42,72 +43,354 @@ func init() {
 	}
 }
 
-// New setups the configuration assuming various parameters have been setup in the AWS account
-func New() (h handler, err error) {
+// DEBUGGING - Move the code that belongs to unee-t/env here to facilitate debugging
+// TO DO - FIND OUT HOW WE CAN MOVE THAT CODE BACK TO `unee-t/env`
 
-	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("uneet-dev"))
-	if err != nil {
-		log.WithError(err).Fatal("setting up credentials")
-		return
-	}
-	cfg.Region = endpoints.ApSoutheast1RegionID
-	e, err := env.New(cfg)
-	if err != nil {
-		log.WithError(err).Warn("error getting AWS unee-t env")
-	}
+// Insert code to create the Db connexion...
 
-	var mysqlhost string
-	val, ok := os.LookupEnv("MYSQL_HOST")
-	if ok {
-		log.Infof("MYSQL_HOST overridden by local env: %s", val)
-		mysqlhost = val
-	} else {
-		mysqlhost = e.Udomain("auroradb")
-	}
+// We need this so it can be exported
+type EnvironmentId int
 
-	h = handler{
-		DSN: fmt.Sprintf("%s:%s@tcp(%s:3306)/bugzilla?multiStatements=true&sql_mode=TRADITIONAL&collation=utf8mb4_unicode_520_ci",
-			e.GetSecret("MYSQL_USER"),
-			e.GetSecret("MYSQL_PASSWORD"),
-			mysqlhost),
-		APIAccessToken: e.GetSecret("API_ACCESS_TOKEN"),
-		Code:           e.Code,
-	}
-
-	h.db, err = sql.Open("mysql", h.DSN)
-	if err != nil {
-		log.WithError(err).Fatal("error opening database")
-		return
-	}
-
-	return
-
+//HandlerSqlConnexion is a type of variable to help us manage our connexion to the SQL databases
+type HandlerSqlConnexion struct {
+	DSN            string // aurora database connection string
+	APIAccessToken string
+	db             *sql.DB
+	environmentId  EnvironmentId
 }
+
+// Environment is a type of variable to help us differentiata each of our environments {dev,demo,prod}.
+type Environment struct {
+	environmentId   EnvironmentId
+	Cfg       		aws.Config
+	AccountID 		string
+	Stage     		string
+}
+
+// https://github.com/unee-t/processInvitations/blob/master/sql/1_process_one_invitation_all_scenario_v3.0.sql#L12-L16
+const (
+	EnvUnknown EnvironmentId = iota 	// Oops
+	EnvDev								// Development aka Staging
+	EnvProd								// Production
+	EnvDemo								// Demo, which is like Production, for prospective customers to try
+)
+
+// GetSecret is the Golang equivalent for
+// aws --profile your-aws-cli-profile ssm get-parameters --names API_ACCESS_TOKEN --with-decryption --query Parameters[0].Value --output text
+
+func (thisEnvironment Environment) GetSecret(key string) string {
+
+	val, ok := os.LookupEnv(key)
+	if ok {
+		log.Warnf("GetSecret Warning: No need to query AWS parameter store: %s overridden by local env", key)
+		return val
+	}
+	// Ideally environment above is set to avoid costly ssm (parameter store) lookups
+
+	ps := ssm.New(thisEnvironment.Cfg)
+	in := &ssm.GetParameterInput{
+		Name:           aws.String(key),
+		WithDecryption: aws.Bool(true),
+	}
+	req := ps.GetParameterRequest(in)
+	out, err := req.Send(context.TODO())
+	if err != nil {
+		log.WithError(err).Errorf("GetSecret Error: failed to retrieve credentials for looking up %s", key)
+		return ""
+	}
+	return aws.StringValue(out.Parameter.Value)
+}
+
+// NewConfig setups the configuration assuming various parameters have been setup in the AWS account
+// - DEFAULT_REGION
+// - STAGE
+func NewConfig(cfg aws.Config) (thisEnvironment Environment, err error) {
+
+	// Save for ssm
+		thisEnvironment.Cfg = cfg
+
+		svc := sts.New(cfg)
+		input := &sts.GetCallerIdentityInput{}
+		req := svc.GetCallerIdentityRequest(input)
+		result, err := req.Send(context.TODO())
+		if err != nil {
+			return thisEnvironment, err
+		}
+
+	// We get the ID of the AWS account we use
+		thisEnvironment.AccountID = aws.StringValue(result.Account)
+		log.Infof("NewConfig Log: The AWS Account ID for this environment is: %s", thisEnvironment.AccountID)
+
+	// We get the value for the DEFAULT_REGION
+		var defaultRegion string
+		valdefaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
+		if ok {
+			defaultRegion = valdefaultRegion
+			log.Infof("NewConfig Log: DEFAULT_REGION was overridden by local env: %s", valdefaultRegion)
+		} else {
+			defaultRegion = thisEnvironment.GetSecret("DEFAULT_REGION")
+			log.Infof("NewConfig Log: We get the DEFAULT_REGION from the AWS parameter store")
+		}
+	
+		if defaultRegion == "" {
+			log.Fatal("NewConfig fatal: DEFAULT_REGION is unset, this is a fatal problem")
+		}
+
+		cfg.Region = defaultRegion
+		log.Infof("NewConfig Log: The AWS region for this environment has been set to: %s", cfg.Region)
+
+	// We get the value for the STAGE
+		var stage string
+		valstage, ok := os.LookupEnv("STAGE")
+		if ok {
+			stage = valstage
+			log.Infof("NewConfig Log: STAGE was overridden by local env: %s", valstage)
+		} else {
+			stage = thisEnvironment.GetSecret("STAGE")
+			log.Infof("NewConfig Log:  We get the STAGE from the AWS parameter store")
+		}
+	
+		if stage == "" {
+			log.Fatal("NewConfig fatal: STAGE is unset, this is a fatal problem")
+		}
+
+		thisEnvironment.Stage = stage
+
+	// Based on the value of the STAGE variable we do different things
+		switch thisEnvironment.Stage {
+		case "dev":
+			thisEnvironment.environmentId = EnvDev
+			return thisEnvironment, nil
+		case "prod":
+			thisEnvironment.environmentId = EnvProd
+			return thisEnvironment, nil
+		case "demo":
+			thisEnvironment.environmentId = EnvDemo
+			return thisEnvironment, nil
+		default:
+			log.WithField("stage", thisEnvironment.Stage).Error("NewConfig Error: unknown stage")
+			return thisEnvironment, nil
+		}
+}
+
+// Bugzilla DSN Build the string that will allow connection to the BZ database from AWS Parameter store variables
+func (thisEnvironment Environment) BugzillaDSN() string {
+
+	// Get the value of the variable BUGZILLA_DB_USER
+		var bugzillaDbUser string
+		valbugzillaDbUser, ok := os.LookupEnv("BUGZILLA_DB_USER")
+		if ok {
+			bugzillaDbUser = valbugzillaDbUser
+			log.Infof("BugzillaDSN Log: BUGZILLA_DB_USER was overridden by local env: %s", valbugzillaDbUser)
+		} else {
+			bugzillaDbUser = thisEnvironment.GetSecret("BUGZILLA_DB_USER")
+			log.Infof("BugzillaDSN Log: We get the BUGZILLA_DB_USER from the AWS parameter store")
+		}
+
+		if bugzillaDbUser == "" {
+			log.Fatal("BugzillaDSN Fatal: BUGZILLA_DB_USER is unset, this is a fatal problem")
+		}
+
+	// Get the value of the variable 
+		var bugzillaDbPassword string
+		valbugzillaDbPassword, ok := os.LookupEnv("BUGZILLA_DB_PASSWORD")
+		if ok {
+			bugzillaDbPassword = valbugzillaDbPassword
+			log.Infof("BugzillaDSN Log: BUGZILLA_DB_PASSWORD was overridden by local env: **hidden_secret**")
+		} else {
+			bugzillaDbPassword = thisEnvironment.GetSecret("BUGZILLA_DB_PASSWORD")
+			log.Infof("BugzillaDSN Log: We get the BUGZILLA_DB_PASSWORD from the AWS parameter store")
+		}
+
+		if bugzillaDbPassword == "" {
+			log.Fatal("BugzillaDSN Fatal: BUGZILLA_DB_PASSWORD is unset, this is a fatal problem")
+		}
+
+	// Get the value of the variable 
+		var mysqlhost string
+		valmysqlhost, ok := os.LookupEnv("MYSQL_HOST")
+		if ok {
+			mysqlhost = valmysqlhost
+			log.Infof("BugzillaDSN Log: MYSQL_HOST was overridden by local env: %s", valmysqlhost)
+		} else {
+			mysqlhost = thisEnvironment.GetSecret("MYSQL_HOST")
+			log.Infof("BugzillaDSN Log: We get the MYSQL_HOST from the AWS parameter store")
+		}
+
+		if mysqlhost == "" {
+			log.Fatal("BugzillaDSN Fatal: MYSQL_HOST is unset, this is a fatal problem")
+		}
+
+	// Get the value of the variable 
+		var mysqlport string
+		valmysqlport, ok := os.LookupEnv("MYSQL_PORT")
+		if ok {
+			mysqlport = valmysqlport
+			log.Infof("BugzillaDSN Log: MYSQL_PORT was overridden by local env: %s", valmysqlport)
+		} else {
+			mysqlport = thisEnvironment.GetSecret("MYSQL_PORT")
+			log.Infof("BugzillaDSN Log: We get the MYSQL_PORT from the AWS parameter store")
+		}
+
+		if mysqlport == "" {
+			log.Fatal("BugzillaDSN Fatal: MYSQL_PORT is unset, this is a fatal problem")
+		}
+
+	// Get the value of the variable 
+		var bugzillaDbName string
+		valbugzillaDbName, ok := os.LookupEnv("BUGZILLA_DB_NAME")
+		if ok {
+			bugzillaDbName = valbugzillaDbName
+			log.Infof("BugzillaDSN Log: BUGZILLA_DB_NAME was overridden by local env: %s", valbugzillaDbName)
+		} else {
+			bugzillaDbName = thisEnvironment.GetSecret("BUGZILLA_DB_NAME")
+			log.Infof("BugzillaDSN Log: We get the BUGZILLA_DB_NAME from the AWS parameter store")
+		}
+
+		if bugzillaDbName == "" {
+			log.Fatal("BugzillaDSN Fatal: BUGZILLA_DB_NAME is unset, this is a fatal problem")
+		}
+
+	// Build the string that will allow connection to the BZ database
+		return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?multiStatements=true&sql_mode=TRADITIONAL&timeout=15s&collation=utf8mb4_unicode_520_ci",
+			bugzillaDbUser,
+			bugzillaDbPassword,
+			mysqlhost,
+			mysqlport,
+			bugzillaDbName)
+}
+
+// NewDbConnexion setups what we need to access the DB assuming various parameters have been setup in the AWS account
+func NewDbConnexion() (bzDbConnexion HandlerSqlConnexion, err error) {
+
+	// We get the AWS configuration information for the default profile
+		cfg, err := external.LoadDefaultAWSConfig()
+		if err != nil {
+			log.WithError(err).Fatal("NewDbConnexion Fatal: We do not have the AWS credentials we need")
+			return
+		}
+
+	// We declare the environment we are in
+		thisEnvironment, err := NewConfig(cfg)
+		if err != nil {
+			log.WithError(err).Warn("NewDbConnexion Warning: error getting some of the parameters for that environment")
+		} else {
+			log.Infof("NewDbConnexion Log: This is the environment: %s", thisEnvironment.environmentId)
+		}
+
+	// cfg also needs the default region.
+	// We get the value for the DEFAULT_REGION
+		defaultRegion, ok := os.LookupEnv("DEFAULT_REGION")
+		if ok {
+			log.Infof("NewDbConnexion Log: DEFAULT_REGION was overridden by local env: %s", defaultRegion)
+		} else {
+			defaultRegion = thisEnvironment.GetSecret("DEFAULT_REGION")
+			log.Infof("NewDbConnexion Log: We get the DEFAULT_REGION from the AWS parameter store")
+		}
+	
+		if defaultRegion == "" {
+			log.Fatal("NewConfig fatal: DEFAULT_REGION is unset, this is a fatal problem")
+		}
+		
+		// Set the AWS Region that the service clients should use
+			cfg.Region = defaultRegion
+			log.Infof("NewDbConnexion Log: The AWS region for this environment has been set to: %s", cfg.Region)
+
+	// We get the value for the API_ACCESS_TOKEN
+		apiAccessToken, ok := os.LookupEnv("API_ACCESS_TOKEN")
+		if ok {
+			log.Infof("NewDbConnexion Log: API_ACCESS_TOKEN was overridden by local env: **hidden secret**")
+		} else {
+			apiAccessToken = thisEnvironment.GetSecret("API_ACCESS_TOKEN")
+			log.Infof("NewDbConnexion Log: We get the API_ACCESS_TOKEN from the AWS parameter store")
+		}
+	
+		if apiAccessToken == "" {
+			log.Fatal("NewConfig fatal: API_ACCESS_TOKEN is unset, this is a fatal problem")
+		}
+
+	// We have everything --> We create the database connexion string
+		bzDbConnexion = HandlerSqlConnexion{
+			DSN:            thisEnvironment.BugzillaDSN(), // `BugzillaDSN` is a function that is defined in the uneet/env/main.go dependency.
+			APIAccessToken: apiAccessToken,
+			environmentId:  thisEnvironment.environmentId,
+		}
+	
+	// Test if this is working as it should
+		bzDbConnexion.db, err = sql.Open("mysql", bzDbConnexion.DSN)
+		if err != nil {
+			log.WithError(err).Fatal("NewDbConnexion fatal: error opening database")
+			return
+		} else {
+			log.Infof("NewDbConnexion Log: We can access the database")
+		}
+
+	microservicecheck := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "microservice",
+			Help: "Version with DB ping check",
+		},
+		[]string{
+			"commit",
+		},
+	)
+
+	// What is the version of this commit
+		version := os.Getenv("UP_COMMIT")
+
+	go func() {
+		for {
+			if bzDbConnexion.db.Ping() == nil {
+				microservicecheck.WithLabelValues(version).Set(1)
+				log.Infof("NewDbConnexion Log: Ping of the DB exited with 1")
+			} else {
+				microservicecheck.WithLabelValues(version).Set(0)				
+				log.Infof("NewDbConnexion Log: Ping of the DB exited with 0")
+			}
+			time.Sleep(pingPollingFreq)
+		}
+	}()
+
+	err = prometheus.Register(microservicecheck)
+	if err != nil {
+		log.Warn("NewDbConnexion Warning: prom already registered")
+	} else {
+		log.Infof("NewDbConnexion Log: prometheus registration is OK")
+	}
+	return
+}
+
+// END DEBUGGING
+// END TO DO - FIND OUT HOW WE CAN MOVE THAT CODE BACK TO `unee-t/env`
 
 func main() {
 
-	h, err := New()
+	currentBzConnexion, err := NewDbConnexion()
 	if err != nil {
-		log.WithError(err).Fatal("error setting configuration")
+		log.WithError(err).Fatal("main Error: We are not able to connect to the BZ database")
 		return
+	}else {
+		log.Infof("apienroll main Log: We have correctly set the information we need to connect to the BZ database")
 	}
 
-	defer h.db.Close()
+	defer currentBzConnexion.db.Close()
 
 	addr := ":" + os.Getenv("PORT")
 
 	app := mux.NewRouter()
-	app.HandleFunc("/", h.enroll).Methods("POST")
-	app.HandleFunc("/", h.ping).Methods("GET")
+	app.HandleFunc("/", currentBzConnexion.enroll).Methods("POST")
+	app.HandleFunc("/", currentBzConnexion.ping).Methods("GET")
 
-	if err := http.ListenAndServe(addr, env.Protect(app, h.APIAccessToken)); err != nil {
-		log.WithError(err).Fatal("error listening")
+	if err := http.ListenAndServe(addr, env.Protect(app, currentBzConnexion.APIAccessToken)); err != nil {
+		log.WithError(err).Fatal("apienroll main Error: We have an error listening to http - API token has been set")
+	}else {
+		log.Infof("apienroll main Log: No error listening to http - API token has been set")
 	}
 
 }
 
-func (h handler) insert(credential APIkey) (err error) {
-	_, err = h.db.Exec(
+func (currentBzConnexion HandlerSqlConnexion) insert(credential BzApiKey) (err error) {
+	_, err = currentBzConnexion.db.Exec(
 		`INSERT INTO user_api_keys (user_id,
 			api_key,
 			description
@@ -116,44 +399,56 @@ func (h handler) insert(credential APIkey) (err error) {
 		credential.UserAPIkey,
 		"MEFE Access Key",
 	)
-	return
+
+	if err != nil {
+		log.WithError(err).Errorf("apienroll insert Error: Not able to insert new BZ user API key in the BZ database")
+		return
+	}else {
+		log.Infof("apienroll insert Log: We have inserted the Bz User API Key into the BZ database")
+		return
+	}
 }
 
-func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
+func (currentBzConnexion HandlerSqlConnexion) enroll(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
-	var k APIkey
+	var k BzApiKey
 	err := decoder.Decode(&k)
 
 	if err != nil {
-		log.WithError(err).Errorf("Input error")
-		response.BadRequest(w, "Invalid JSON")
+		log.WithError(err).Errorf("apienroll enroll Error: We have an Input error - JSON is invalid")
+		response.BadRequest(w, "apienroll enroll BadRequest: The request uses Invalid JSON")
 		return
+	}else {
+		log.Infof("apienroll enroll Log: No error here JSON is valid")
 	}
+	
 	defer r.Body.Close()
 
 	ctx := log.WithFields(log.Fields{
-		"APIkey": k,
+		"apienroll enroll Log: The BZ API key for the newly created user has been defined": k,
 	})
 
-	ctx.Info("Decoded")
+	ctx.Info("apienroll enroll Log: Decoded (whatever this means...)")
 
 	if k.UserAPIkey == "" {
-		response.BadRequest(w, "Missing UserAPIkey")
+		response.BadRequest(w, "apienroll enroll BadRequest: We are missing the APIkey that we need to insert")
 		return
 	}
 
 	if k.UserID == "" {
-		response.BadRequest(w, "Missing UserID")
+		response.BadRequest(w, "apienroll enroll BadRequest: We are missing the BZ UserID")
 		return
 	}
 
-	err = h.insert(k)
+	err = currentBzConnexion.insert(k)
 
 	if err != nil {
-		log.WithError(err).Warnf("failed to insert")
-		response.BadRequest(w, "Failed to insert")
+		log.WithError(err).Warnf("apienroll enroll Warning: We were not able to insert the API key for the new user in the BZ database")
+		response.BadRequest(w, "apienroll enroll BadRequest: We were not able to insert the API key for the new user in the BZ database")
 		return
+	}else {
+		log.Infof("apienroll enroll Log: No error when inserting the API Key for the new user in the BZ database")
 	}
 
 	response.OK(w)
@@ -161,11 +456,13 @@ func (h handler) enroll(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h handler) ping(w http.ResponseWriter, r *http.Request) {
-	err := h.db.Ping()
+func (currentBzConnexion HandlerSqlConnexion) ping(w http.ResponseWriter, r *http.Request) {
+	err := currentBzConnexion.db.Ping()
 	if err != nil {
-		log.WithError(err).Error("failed to ping database")
+		log.WithError(err).Error("ping Error: we have not been able to ping the BZ database")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}else {
+		log.Infof("apienroll ping Log: we are able to ping the BZ database")
 	}
-	fmt.Fprintf(w, "OK")
+	fmt.Fprintf(w, "OK - we are able to ping the BZ database")
 }
